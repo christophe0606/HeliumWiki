@@ -1,0 +1,25 @@
+name = "analyze"
+description = "Analyze optimization guidelines"
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+developer_instructions = """
+Load the structured data file from its path in .flow folder.
+Analyze its content.
+Identify if the optimization guideline is related to:
+* hardware
+* programming language
+* software development pattern
+* techniques
+Create a wiki page in the right wiki folder in helium-wiki/wiki.
+It is a markdown file with a yaml header.
+yaml header must respect the schema defined in data/schemas.yaml
+yaml header uses some tags. If some are missing, create them in data/tags.yaml
+Only update architectures,hardware_features and techniques. 
+Other tags categories must not be changed.
+
+The type must correspond to folder in the wiki.
+The id is the name of the markdown file without the extension.
+The id must being with <type>- where <type> is the type of the wiki page (e.g., hardware, languages, patterns, techniques).
+Link between wiki pages are done though their id and corresponding yaml fields.
+The source in yaml header is either a URL or the name of an official document
+"""

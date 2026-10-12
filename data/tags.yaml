@@ -1,0 +1,44 @@
+## Controlled Vocabulary — Tags
+## All tags used in source and wiki frontmatter must appear here.
+## The validator (scripts/validate.py) rejects unknown tags.
+
+architectures:
+
+
+hardware_features:
+
+
+techniques:
+
+type:
+  - hardware
+  - languages
+  - patterns
+  - techniques
+
+languages:
+  - asm
+  - c
+  - cpp
+
+confidence:
+  - verified
+  - source-reported
+  - inferred
+  - experimental
+
+reproducibility:
+  - concept
+  - pseudocode
+  - snippet
+  - runnable
+  - benchmarked
+
+source_categories:
+  - official-doc
+  - upstream-code
+  - paper
+  - benchmark-blog
+  - contest-report
+  - community-note
+

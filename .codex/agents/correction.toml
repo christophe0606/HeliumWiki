@@ -1,0 +1,12 @@
+name = "analyze"
+description = "Correct a wrong wiki page"
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+developer_instructions = """
+Correct a page that is not valid according to the python script.
+Use errors returned by the validation script to guide the correction process.
+If errors are due to missing tags, the tags can be added to data/tags.yaml for
+only architectures,hardware_features and techniques. Other tags categories
+must not be changed.
+
+"""

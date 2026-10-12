@@ -1,0 +1,12 @@
+name = "extractor"
+description = "Read-only document extractor to extract optimization guidelines from documents"
+model = "gpt-6-luna"
+model_reasoning_effort = "high"
+developer_instructions = """
+Analyze the documents thoroughly to identify optimization guidelines 
+and relevant information. Extract the optimization guidelines
+in the .flow folder as structured data files
+and return the paths to the extracted structured data files.
+Each extraction will be done in a new subfolder of .flow folder.
+The folder name will have a monotonic increasing index.
+"""
