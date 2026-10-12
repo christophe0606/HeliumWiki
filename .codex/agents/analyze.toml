@@ -4,7 +4,9 @@ model = "gpt-6-luna"
 model_reasoning_effort = "high"
 developer_instructions = """
 Load the structured data file from its path in .flow folder.
-Analyze its content.
+Use it to load only the relevant section from the original document 
+instead of loading the whole document.
+Analyze the content of this section once it has been loaded.
 Identify if the optimization guideline is related to:
 * hardware
 * programming language

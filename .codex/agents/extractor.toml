@@ -7,6 +7,14 @@ Analyze the documents thoroughly to identify optimization guidelines
 and relevant information. Extract the optimization guidelines
 in the .flow folder as structured data files
 and return the paths to the extracted structured data files.
-Each extraction will be done in a new subfolder of .flow folder.
+
+The goal of each extract is to focus on specific optimization guidelines
+so that future agents don't have to load the full document and can only
+focus on the relevant sections of the document.
+
+Each extraction round will be done in a new subfolder of .flow folder.
 The folder name will have a monotonic increasing index.
+The folder will contain all the extracted structured data files 
+from that extraction round.
+
 """
