@@ -1,6 +1,6 @@
 name = "analyze"
 description = "Analyze optimization guidelines"
-model = "gpt-6-luna"
+model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
 developer_instructions = """
 Load the structured data file from its path in .flow folder.
@@ -12,6 +12,12 @@ Identify if the optimization guideline is related to:
 * programming language
 * software development pattern
 * techniques
+
+Use the skill in helium-wiki/SKILL.md to find related optimization guidelines.
+If no optimization guideline is found, create a new one following the instructions below.
+If an optimization guideline is found, update it with any new relevant information and don't create a new page.
+
+# Wiki page creation instructions
 Create a wiki page in the right wiki folder in helium-wiki/wiki.
 It is a markdown file with a yaml header.
 yaml header must respect the schema defined in data/schemas.yaml
@@ -24,4 +30,7 @@ The id is the name of the markdown file without the extension.
 The id must begin with <type>- where <type> is the type of the wiki page (e.g., hardware, languages, patterns, techniques).
 Links between wiki pages are made though their id and corresponding yaml fields.
 The source in yaml header is either a URL or the name of an official document
+
+The markdown must start with a short paragraph that describes when the optimization guideline should be applied and what problem it solves.
+
 """

@@ -3,12 +3,34 @@
 ## The validator (scripts/validate.py) rejects unknown tags.
 
 architectures:
-
+  - armv8.1-m
+  - cortex-m55
+  - cortex-m85
 
 hardware_features:
-
+  - helium
+  - mve
+  - low-overhead-branch
+  - floating-point
+  - cache
+  - branch-prediction
+  - instruction-tcm
+  - data-tcm
+  - extension-processing-unit
 
 techniques:
+  - auto-vectorization
+  - compiler-target-configuration
+  - data-placement
+  - cache-management
+  - instruction-scheduling
+  - loop-alignment
+  - branch-prediction
+  - power-management
+  - half-precision
+  - cmsis-dsp-migration
+  - buffer-alignment
+  - processor-initialization
 
 type:
   - hardware
@@ -41,4 +63,3 @@ source_categories:
   - benchmark-blog
   - contest-report
   - community-note
-

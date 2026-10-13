@@ -1,85 +1,77 @@
 ---
 name: helium-wiki
-description: Use when the user asks about optimizing a software for a Cortex-M system"
-allowed-tools: "Bash Read Grep Glob"
+description: Find Cortex-M software optimization guidance in a local wiki. Use for Helium/MVE, DSP, compiler optimization, memory placement, and performance questions.
 ---
 
-# helium-wiki — Cortex-M Software Optimization Wiki
+# Helium Wiki
 
+Find software optimization guidance for Cortex-M systems, including Cortex-M55 and Cortex-M85. Use the concept map, summary tables, and search scripts to locate relevant pages, then read those pages before answering.
 
-Query a structured, cross-referenced knowledge base of Cortex-M software optimization.
-  
-## When To Use This Skill
+## Start with the concept map
 
-Trigger this skill when the user asks about:
+[wiki/README.md](wiki/README.md) is the entry point into the wiki. It groups pages by optimization concept rather than by their storage folders. Each section has a table containing page IDs, linked paths, and one-line descriptions.
 
-- **Kernel implementations** — gemm, fft
-- **Performance patterns** — low CPU utilization, memory-bound, register pressure, compute-bound, tail effects, pipeline stalls
+For a broad question, start with the section covering the user's problem, such as vector loops, DSP data, memory placement, or execution latency. Follow the page links or retrieve the listed IDs with `get_page.py`. Pages also contain `related` IDs for further navigation.
 
-Do NOT use this skill for:
+## Browse the summary tables
 
-- Generic Cortex-M questions unrelated to software optimization
-- Host-side framework integration (RTOS, device drivers, middleware)
+[queries/](queries/) contains generated summary tables that serve a similar discovery purpose to the scripts: use them to find candidate pages by feature, language, technique, or page ID without running a search.
 
-## How To Query
+| Table | How to find information |
+| --- | --- |
+| [by-hardware.md](queries/by-hardware.md) | Look up a hardware feature such as `helium`, `cache`, or `data-tcm` and follow the linked relevant pages. |
+| [by-languages.md](queries/by-languages.md) | Look up `asm`, `c`, or `cpp` and follow the linked relevant pages. |
+| [by-techniques.md](queries/by-techniques.md) | Browse linked technique titles and compare tags, architecture, confidence, and reproducibility. |
+| [by-patterns.md](queries/by-patterns.md) | Look up a pattern page ID and follow its linked title. |
 
-All commands below run from the skill directory (the clone root — the directory this `SKILL.md` lives in). The scripts auto-resolve the wiki root; **no environment variable required**.
+Files are named `by-<folder>.md` for folders under `wiki/`. A table or row may be empty when no relevant pages are indexed. Table links point into `wiki/`; read the linked page for the explanation, evidence, and applicable conditions.
 
-### Path 1: Unified search (preferred for natural language)
+## Use the navigation scripts
 
-```bash
-python3 scripts/query.py "how to fuse gate-up dual GEMM on Blackwell"
-python3 scripts/query.py --tag nvfp4 --type kernel
-python3 scripts/query.py --repo cutlass --limit 20
-python3 scripts/query.py --symptom tail-effect --compact
-```
+Run commands from the installed `helium-wiki/` directory containing this `SKILL.md`. Use `uv run`; the scripts resolve their data from their own location and need no environment variables. Returned paths such as `wiki/techniques/example.md` are relative to this directory.
 
-Filters: `--type`, `--tag`, `--repo`, `--language`, `--architecture`,
-`--symptom`, `--confidence`, `--limit`, `--compact`, `--paths-only`. `--tag`
-and `--architecture` accept aliases — `--tag UMMA` matches `tcgen05`,
-`--architecture B200` matches `sm100`, etc.
+The scripts read local files and make no HTTP requests. 
 
-### Path 2: Fetch a specific page by id or path
+### Search page headers with query.py
+
+[scripts/query.py](scripts/query.py) ranks pages using natural-language keywords and YAML frontmatter, including titles, tags, descriptions, and page aliases. It returns titles, paths, and key metadata. Use it to discover pages by topic or filter candidates by their metadata.
 
 ```bash
-python3 scripts/get_page.py kernel-flash-attention-4
-python3 scripts/get_page.py pr-cutlass-2472
-python3 scripts/get_page.py kernel-flash-attention-4 --follow-sources
-python3 scripts/get_page.py kernel-flash-attention-4 --body-only
+uv run scripts/query.py "how to enable caches on Cortex-M55"
+uv run scripts/query.py --tag helium --type techniques --limit 5
+uv run scripts/query.py --architecture cortex-m85 --confidence source-reported --compact
+uv run scripts/query.py --language c --paths-only
 ```
 
-### Path 3: Regex text search across wiki bodies and PR pages
+Filters: `--type`, `--tag`, `--repo`, `--language`, `--architecture`, `--symptom`, and `--confidence`. Different filters and repeated values are combined with AND. Tag filters also inspect architecture fields; language and symptom filters also inspect tags. Missing optional metadata does not match a filter.
+
+`--limit` controls the maximum result count, `--compact` prints one line per result, and `--paths-only` prints only matching paths. Generated [data/aliases.yaml](data/aliases.yaml) maps page IDs to aliases from wiki headers; these aliases participate in keyword search. For terms occurring in a page's body, use `grep_wiki.py`.
+
+### Read a page with get_page.py
+
+[scripts/get_page.py](scripts/get_page.py) retrieves a page by its YAML `id` or its skill-relative Markdown path. IDs can differ from filenames. By default it prints the frontmatter and body.
 
 ```bash
-python3 scripts/grep_wiki.py "tcgen05\\.fence"
-python3 scripts/grep_wiki.py "2-CTA backward" --only wiki
-python3 scripts/grep_wiki.py "nvfp4" "block_scale" --any
+uv run scripts/get_page.py techniques-armv8m-cortex-m55-m85-cache-management
+uv run scripts/get_page.py wiki/languages/languages-c-float16-half-precision.md --body-only
 ```
 
-### Path 4: Pre-built cross-reference indices
+Use `--body-only` for the Markdown body or `--frontmatter-only` for the YAML block. Add `--follow-sources` to append the first 500 characters of each available local source, resolved by path or page ID. Source following is one level deep; URL entries are reported without being fetched. IDs are searched in `wiki/` and in `sources/` when that folder exists.
 
-Auto-generated under `queries/`:
+### Search page bodies with grep_wiki.py
 
-- `queries/by-problem.md` — symptom → pattern page → candidate techniques
-- `queries/by-technique.md` — 15 techniques with architectures, confidence, reproducibility, source count
-- `queries/by-hardware-feature.md` — tcgen05/tmem/clc/tma/nvfp4/etc. → related wiki + PR pages
-- `queries/by-kernel-type.md` — gemm/attention/moe/mla/gated-delta-net → pages
-- `queries/by-language.md` — cute-dsl/cuda-cpp/ptx/triton → guide page + related kernels/sources
-- `queries/by-repo.md` — all 2179 PRs across cutlass/sglang/vllm/flashinfer/pytorch/DeepGEMM
+[scripts/grep_wiki.py](scripts/grep_wiki.py) searches Markdown bodies under `wiki/` and local source PR descriptions under `sources/` when present. It excludes YAML frontmatter and returns paths, original file line numbers, and optional context lines.
 
-### Path 5: Primer, schema, examples
+```bash
+uv run scripts/grep_wiki.py "SCB->CCR" --only wiki --context 3
+uv run scripts/grep_wiki.py "cache alignment" --any
+uv run scripts/grep_wiki.py "MVE|_Float16" --regex --only wiki
+```
 
-Companion docs under `references/`:
+Queries are case-insensitive literal phrases by default. Multiple query arguments must all occur on the same line. `--any` splits literal queries into words and matches any word; with `--regex`, it matches any supplied expression. `--only wiki`, `--only sources`, or `--only all` selects the folders. `--context N` adds N lines before and after each match, merging overlapping context.
 
-- `references/primer.md` — topic map: hardware features, techniques, symptoms, canonical page IDs. Read this first when the question is broad.
-- `references/schema.md` — condensed frontmatter schema, confidence rules, reproducibility ladder, controlled vocabulary, canonical aliases.
-- `references/examples.md` — 10 worked query patterns mapping user questions → command sequences → synthesis.
+Matching lines use `path:line:text`; context lines use `path-line-text`. Exit code 1 means no matches, while 2 indicates an error.
 
-## Output Pattern
+## Answer from the pages
 
-When answering from this KB:
-
-1. **Cite specific pages** with paths (e.g., `wiki/kernels/flash-attention-4.md`) and IDs (`kernel-flash-attention-4`).
-2. **Respect confidence levels** — `verified` > `source-reported` > `inferred` > `experimental`. Call out when a claim is `experimental` or `inferred`.
-3. **Include code snippets** from wiki pages when they exist — technique/kernel/language pages are guaranteed `snippet`-reproducibility (validator-enforced).
-
+Cite the relevant page IDs and paths. Use each page's confidence, reproducibility, architecture, and version-sensitive fields to describe the scope of its guidance. Include available code snippets when useful, and distinguish source-reported claims from independently verified results. The concept map and summary tables guide navigation; the pages provide the details supporting an answer.
