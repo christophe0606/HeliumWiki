@@ -2,7 +2,7 @@
 
 Use this map to find optimization guidance for Cortex-M55 and Cortex-M85 by concept. Each row identifies a wiki page and summarizes what it covers. Paths are relative to `helium-wiki/`; the links open the corresponding pages.
 
-These pages capture source-reported guidance from Arm's [software development hints and tips article](https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips) and the [Arm Cortex-M55 Processor Software Optimization Guide](https://support.arm.com/documentation/102692/0101), Cortex-M55 r1p1, Issue 03. The guide's timing and hazard details apply to that M55 revision; they do not establish M85 timing. Check each page's processor, revision, and toolchain conditions before applying it. Instruction timings and scheduling implications do not establish measured application speedups.
+The instruction timing and scheduling guidance is source-reported for Cortex-M55 r1p1, Issue 03 and Cortex-M85 r1p0, Issue 01. Timing, forwarding, and issue-resource details apply to the processor and revision identified in each page; do not transfer them between cores. Check each page's processor, revision, and toolchain conditions before applying it. Instruction timings and scheduling implications do not establish measured application speedups.
 
 ## Compiler configuration and vectorization
 
@@ -29,24 +29,28 @@ These pages capture source-reported guidance from Arm's [software development hi
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `hardware-itcm-instruction-data-contention` | [wiki/hardware/hardware-itcm-instruction-data-contention.md](hardware/hardware-itcm-instruction-data-contention.md) | Place frequently read coefficients and literals to avoid competing with instruction fetches in ITCM. |
-| `hardware-dtcm-scatter-gather-banks` | [wiki/hardware/hardware-dtcm-scatter-gather-banks.md](hardware/hardware-dtcm-scatter-gather-banks.md) | Arrange eligible accesses across DTCM banks and account for the M55 r1p1 same-bank vector-load penalty. |
+| `hardware-itcm-instruction-data-contention` | [wiki/hardware/hardware-itcm-instruction-data-contention.md](hardware/hardware-itcm-instruction-data-contention.md) | Place critical data to avoid ITCM fetch contention and evaluate M85 DTCM placement for TCM-bound code. |
+| `hardware-dtcm-scatter-gather-banks` | [wiki/hardware/hardware-dtcm-scatter-gather-banks.md](hardware/hardware-dtcm-scatter-gather-banks.md) | Arrange accesses across DTCM banks, distinguish M55 vector-load penalties, and account for M85 L1 banks and DMA conflicts. |
 | `techniques-armv8m-cache-management` | [wiki/techniques/techniques-armv8m-cache-management.md](techniques/techniques-armv8m-cache-management.md) | Apply Armv8-M cache enable and deactivation ordering and interpret revision-sensitive Cortex-M55 cache events. |
+| `techniques-cortex-m85-cache-prefetch` | [wiki/techniques/techniques-cortex-m85-cache-prefetch.md](techniques/techniques-cortex-m85-cache-prefetch.md) | Evaluate M85 hardware prefetch coverage, explicit data-prefetch costs, and transient clean-cache-line replacement hints. |
 | `techniques-cortex-m55-memory-access-scheduling` | [wiki/techniques/techniques-cortex-m55-memory-access-scheduling.md](techniques/techniques-cortex-m55-memory-access-scheduling.md) | Schedule M55 scalar and MVE memory accesses using encoding-specific timing, gather forwarding, alignment, and overlap constraints. |
+| `techniques-cortex-m85-memory-access-scheduling` | [wiki/techniques/techniques-cortex-m85-memory-access-scheduling.md](techniques/techniques-cortex-m85-memory-access-scheduling.md) | Schedule M85 scalar, FP, and MVE memory accesses by encoding, consumer dependency, store-data forwarding, alignment, and base updates. |
 
 ## Instruction selection, latency, and execution overlap
 
 | ID | Path | Quick description |
 | --- | --- | --- |
 | `techniques-cortex-m55-latency-aware-scheduling` | [wiki/techniques/techniques-cortex-m55-latency-aware-scheduling.md](techniques/techniques-cortex-m55-latency-aware-scheduling.md) | Schedule M55 scalar instructions by dependency latency, encoding, shifted operands, stack-pointer updates, and divide costs. |
+| `techniques-cortex-m85-latency-aware-scheduling` | [wiki/techniques/techniques-cortex-m85-latency-aware-scheduling.md](techniques/techniques-cortex-m85-latency-aware-scheduling.md) | Schedule M85 scalar instructions by operand latency, issue-slot resources, encoding, divide costs, and producer/consumer classes. |
 | `techniques-cortex-m55-thumb-dual-issue` | [wiki/techniques/techniques-cortex-m55-thumb-dual-issue.md](techniques/techniques-cortex-m55-thumb-dual-issue.md) | Select eligible M55 16-bit Thumb encodings while checking issue slots, operands, dependencies, and pairing restrictions. |
 | `techniques-cortex-m55-floating-point-scheduling` | [wiki/techniques/techniques-cortex-m55-floating-point-scheduling.md](techniques/techniques-cortex-m55-floating-point-scheduling.md) | Schedule M55 scalar and MVE floating-point work by precision, fused-operation semantics, forwarding, and pipeline hazards. |
-| `techniques-helium-instruction-interleaving` | [wiki/techniques/techniques-helium-instruction-interleaving.md](techniques/techniques-helium-instruction-interleaving.md) | Interleave Helium instruction types using M55 two-tick pipelines, forwarding classes, mixed-pipe ordering, and scalar-register write hazards. |
+| `techniques-cortex-m85-floating-point-scheduling` | [wiki/techniques/techniques-cortex-m85-floating-point-scheduling.md](techniques/techniques-cortex-m85-floating-point-scheduling.md) | Schedule M85 scalar and MVE FP by precision, operand dependencies, shared EPU resources, and fused-operation semantics. |
+| `techniques-helium-instruction-interleaving` | [wiki/techniques/techniques-helium-instruction-interleaving.md](techniques/techniques-helium-instruction-interleaving.md) | Interleave Helium work using M55 pipeline hazards or M85 issue groups, SIMD/load-store sequence rules, and loop-boundary compatibility. |
 
 ## Branch prediction and loop control
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `techniques-cortex-m-branch-prediction` | [wiki/techniques/techniques-cortex-m-branch-prediction.md](techniques/techniques-cortex-m-branch-prediction.md) | Select revision-specific prediction controls and interpret M55 branch, low-overhead-loop, and scalar/vector overlap timing. |
+| `techniques-cortex-m-branch-prediction` | [wiki/techniques/techniques-cortex-m-branch-prediction.md](techniques/techniques-cortex-m-branch-prediction.md) | Select revision-specific prediction controls and distinguish M55/M85 branch timing, M85 branch layout, and loop overlap constraints. |
 | `techniques-helium-low-overhead-loop-alignment` | [wiki/techniques/techniques-helium-low-overhead-loop-alignment.md](techniques/techniques-helium-low-overhead-loop-alignment.md) | Align actual low-overhead-loop targets to four-byte boundaries and verify padding in the final assembly. |
 

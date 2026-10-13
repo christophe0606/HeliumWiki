@@ -18,10 +18,14 @@ related:
   - techniques-cortex-m55-latency-aware-scheduling
   - techniques-cortex-m55-floating-point-scheduling
   - techniques-cortex-m55-memory-access-scheduling
+  - techniques-cortex-m85-latency-aware-scheduling
+  - techniques-cortex-m85-memory-access-scheduling
+  - techniques-cortex-m85-floating-point-scheduling
   - hardware-dtcm-scatter-gather-banks
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://support.arm.com/documentation/102692/0101
+  - https://support.arm.com/documentation/107950/0100
 aliases:
   - Helium instruction scheduling
   - MVE instruction interleaving
@@ -30,6 +34,9 @@ aliases:
   - Cortex-M55 MVE two-tick overlap
   - M55 E2 E3 SRF write hazards
   - Cortex-M55 I F LS SY pipeline scheduling
+  - Cortex-M85 MVE overlap
+  - Cortex-M85 SIMD instruction groups
+  - Cortex-M85 load store overlap parity
 ---
 
 In hand-optimized Helium assembly for M55 or M85, a run of one instruction type may leave opportunities to overlap execution unused. Interleave different types of Helium instructions in the sequence so the processor can work on their execution concurrently.
@@ -94,3 +101,47 @@ For the listed integer and floating-point vector min/max reductions, the table g
 The MVE scalar-shift rows report latency `2(5)` and throughput `1(1/4)`. Their note says that with `CPACR.CP10 != 0b00`, execution uses the EPU with shorter latency and higher throughput; when `CPACR.CP10 == 0b00`, execution uses the DPU and the longer latency/lower throughput appear in parentheses. MVE scalar shifts are also excluded from the scalar/vector overlap list. [§3.11, Table 3-17, p. 41; §4.1, p. 46]
 
 As a scheduling implication, classify the exact assembled instructions by pipe, write stage, forwarding class, and variant before interleaving them. Then preserve dependencies and the explicit mixed-pipe ordering notes, and verify overlap in the target workload. The guide reports architectural timing and hazard conditions, not measured speedups from a particular reordered sequence.
+
+## Cortex-M85 r1p0 overlap and sequence rules
+
+For hand-scheduled MVE code on Cortex-M85 r1p0, consider the two-beat issue groups and the order of SIMD and load/store instructions together. Each 128-bit MVE instruction is processed over two 64-bit ticks. When dependencies permit, tick 1 of an older instruction can overlap tick 0 of a younger one. The issue scheduler permits that overlap only when those two beats do not require the same issue-group resource. The guide's per-instruction throughput is a peak group rate, not an application speedup. [Arm Cortex-M85 Processor Software Optimization Guide, r1p0, Issue 01 (26 April 2023), sections 2.2 and 3.1, pages 11-13; section 4.1, page 43]
+
+MVE instructions use slot 0 in tick 0 and do not occupy the issue stage in tick 1. Scalar FP shares EPU resources with MVE, so adjacent scalar FP and MVE instructions can have structural hazards. Integer/MVE structural hazards can also occur when an MVE instruction modifies scalar registers. Resource compatibility and operand dependency are separate checks: a pair with different issue groups still cannot bypass a true dependency. Do not apply the Cortex-M55 I/F/LS/SY or E2/E3 write-stage rules to M85; use the M85 tables and the exact instruction form. [sections 2.2 and 3.1, pages 11-13; section 4.1, page 43]
+
+### Use representative execution groups
+
+M85 sections 3.10-3.13 assign MVE operations to groups A, B, C, or SYS. These examples help identify pairs to inspect; they are not a complete scheduling table. [sections 3.10-3.13, pages 31-40]
+
+| Representative MVE operation | Source-reported latency and throughput | Group |
+| --- | --- | --- |
+| Integer VADD/VSUB and many integer arithmetic operations | Latency 1; throughput 1/2 | A |
+| Integer min/max reductions (VMAXV/VMAXAV/VMINV/VMINAV) | Latency 2; throughput 1/2 | A |
+| Integer VMUL/VMLA and listed saturating or long multiply forms | Latency 2; throughput 1/2 | B |
+| Polynomial VMULL | Latency 1; throughput 1/2 | A |
+| Integer arithmetic-to-scalar reductions/accumulates (VADDLV/VADDV/VMLADAV/VMLALDAV/VMLSDAV/VMLSLDAV/VRMLALDAVH/VRMLSLDAVH) | Latency 2; throughput 1/2 | B |
+| Integer VCMP/VPT | Latency 1; throughput 1/2 | C |
+| Logical operations such as VAND, VEOR, VORR, and VREV | Latency 1; throughput 1 | A or B |
+| FP VADD/VSUB/VCADD | Latency 2; throughput 1/2 | A |
+| FP VMUL/VCMUL | Latency 3; throughput 1/2 | B |
+| FP vector VCMLA/VFMA/VFMS/VFMAS | Latency 4 from multiplicands and 2 from addend; throughput 1/2 | A and B |
+| VCTP, VPNOT, VPST | Latency 1; throughput 1 | SYS |
+
+Scalar-lane transfers have their own group and direction. A general-purpose register to one vector lane, or two general-purpose registers to two 32-bit lanes, lists latency 1 and throughput 1 in group A or B. A vector lane to general-purpose register(s) lists latency 1 and throughput 1/2 in group B. The note below the lane-VMOV table refers to shift-amount and shifted-value operands despite appearing under the MOV table; do not apply that note to VMOV. Use the scalar-shift timing row for those dependencies. [section 3.11, pages 37-38]
+
+For example, the guide's A, B, A, B alternation can expose overlap when operands are independent and the required resources are free; a run such as B, B, A, A is less favorable. This is an issue-group illustration, not a guaranteed cycle count. For FP and memory dependency adjustments, see [Cortex-M85 floating-point scheduling](techniques-cortex-m85-floating-point-scheduling.md) and [Cortex-M85 memory-access scheduling](techniques-cortex-m85-memory-access-scheduling.md). [section 4.10, pages 46-49]
+
+The integer arithmetic-to-scalar reductions and accumulates above produce scalar values; the guide's producer/consumer adjustment makes an integer consumer see a longer delay for FP/MVE-produced scalar values because EPU execution begins two cycles later than integer/LSU execution. Keep that consumer adjustment separate from the latency-2 producer row. [sections 3.10 and 4.2, pages 31-37 and 43-44]
+
+### Account for loads, stores, and loop boundaries
+
+In the guide's examples, alternating vector loads and stores can fully overlap, but adjacent loads do not overlap each other and adjacent stores do not overlap each other. Do not extend the alternating-load/store result to every arbitrary LDST sequence. The first LDST in an LDST run overlaps the last SIMD instruction in the preceding SIMD run in the described schedules, subject to data dependencies and applicable memory conditions. [section 4.10, pages 46-49]
+
+After an overlapping SIMD pair, an otherwise fully overlapping alternating LDST run exposes overlap with the next SIMD when its instruction count is even. For example, A, B, LD, ST, A permits the next A to overlap ST; A, B, LD, ST, LD, A does not permit it to overlap the final LD. After a non-overlapping SIMD pair, the corresponding alternating-run rule is odd count: A, A, LD, ST, LD, B permits B to overlap the final LD, while A, A, LD, ST, B does not. These are schematic sequences with independent operands. [section 4.10, pages 46-49]
+
+If adjacent loads or adjacent stores cause a non-overlapping part of the LDST run, count the tail starting at the conflict-causing second load or store, including that instruction. The following SIMD instruction overlaps only when that tail contains an even number of instructions or exactly one instruction. The single-instruction exception is explicit: in A, A, LD, LD, B, the tail starting at the second LD has length 1, so B overlaps the final LD; in A, B, LD, LD, ST, LD, A, the tail starting at the second LD has length 3, so the final A does not overlap; and in A, A, ST, ST, LD, A, the tail starting at the second ST has length 2, so A overlaps. Preserve the stated counting rule rather than treating all LDST runs as alternating pairs. [section 4.10, pages 48-49]
+
+LE/LETP has no issue cost and does not change LDST/SIMD overlap based on where it appears, but compatibility from the end of one loop body to the start of the next still matters. Unrolling can create more freedom to place independent instructions even when the loop instruction itself has no issue cost; that is a scheduling opportunity, not removal of loop-control overhead. Register pressure, true dependencies, alignment, and memory behavior remain relevant. [section 4.10, pages 46-49]
+
+The source also notes a tradeoff between scatter/gather instructions and scalar transfers to or from vector registers based on address-register pressure and bank-friendly access arrangement. Scatter/gather base-register updates do not forward to following instructions. See [Cortex-M85 memory-access scheduling](techniques-cortex-m85-memory-access-scheduling.md) for conditional address-formation options and separate store-data adjustments. [section 4.10, page 49]
+
+These rules describe the Cortex-M85 r1p0 guide's issue resources, dependency constraints, and example sequences. They are implementation guidance for instruction placement, not algorithm changes or measured application speedups; inspect the generated instructions and measure the actual workload. [sections 2.2, 3.1, and 3.10-3.15, pages 11-13 and 31-42; section 4.10, pages 46-49]

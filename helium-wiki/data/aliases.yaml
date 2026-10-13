@@ -72,6 +72,28 @@ techniques-cortex-m55-thumb-dual-issue:
 - Cortex-M55 16-bit instruction pairing
 - Cortex-M55 Thumb dual issue
 - Cortex-M55 Thumb instruction slots
+techniques-cortex-m85-cache-prefetch:
+- Cortex-M85 hardware data prefetch
+- Cortex-M85 streaming cache traffic
+- M85 PLD PLDW hints
+- M85 transient cache attribute
+techniques-cortex-m85-floating-point-scheduling:
+- Cortex-M85 FP scheduling
+- Cortex-M85 VFMA scheduling
+- M85 floating point latency
+- M85 fused multiply accumulate
+- M85 scalar and vector FP timing
+techniques-cortex-m85-latency-aware-scheduling:
+- Cortex-M85 dual issue
+- Cortex-M85 instruction latency
+- Cortex-M85 scalar scheduling
+- M85 scalar dependency scheduling
+techniques-cortex-m85-memory-access-scheduling:
+- Cortex-M85 load and store scheduling
+- Cortex-M85 memory alignment
+- Cortex-M85 store data forwarding
+- M85 gather and scatter scheduling
+- M85 memory access latency
 techniques-helium-auto-vectorization:
 - armclang vectorization remarks
 - Helium auto-vectorization
@@ -81,6 +103,9 @@ techniques-helium-instruction-interleaving:
 - assembly scheduling
 - Cortex-M55 I F LS SY pipeline scheduling
 - Cortex-M55 MVE two-tick overlap
+- Cortex-M85 load store overlap parity
+- Cortex-M85 MVE overlap
+- Cortex-M85 SIMD instruction groups
 - Helium instruction scheduling
 - instruction overlap
 - M55 E2 E3 SRF write hazards

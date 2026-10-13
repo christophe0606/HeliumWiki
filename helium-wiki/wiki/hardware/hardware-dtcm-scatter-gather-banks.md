@@ -1,6 +1,6 @@
 ---
 id: hardware-dtcm-scatter-gather-banks
-title: Place scatter and gather data across DTCM banks
+title: Place concurrent loads across DTCM banks and Cortex-M85 data-cache banks
 type: hardware
 architectures:
   - cortex-m55
@@ -15,6 +15,8 @@ confidence: source-reported
 reproducibility: concept
 related:
   - hardware-itcm-instruction-data-contention
+  - techniques-cortex-m85-latency-aware-scheduling
+  - techniques-cortex-m85-memory-access-scheduling
   - patterns-cmsis-dsp-helium-migration
   - techniques-helium-instruction-interleaving
   - techniques-armv8m-cache-management
@@ -22,6 +24,7 @@ related:
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://support.arm.com/documentation/102692/0101
+  - https://support.arm.com/documentation/107950/0100
 aliases:
   - DTCM banks
   - scatter gather memory placement
@@ -33,7 +36,17 @@ aliases:
 
 Scatter/gather DSP code can benefit from DTCM when it issues separate data accesses that can reach different banks. On M55 and M85, the article describes four interleaved DTCM banks selected by address bits 2 and 3. Two separate accesses of 32 bits or less can be carried out simultaneously when they target different banks.
 
-Arrange the accessed addresses so the concurrent accesses differ in bits [3:2]; accesses mapping to the same bank cannot use the stated overlap. This is conditional on access size and bank selection. The article contrasts this with AXI data accesses, where the D-cache lookup handles one address per cycle, but it does not claim a general twofold throughput gain for every DTCM workload or vector load.
+Arrange the accessed addresses so the concurrent accesses differ in bits [3:2]; accesses mapping to the same bank cannot use the stated overlap. This is conditional on access size and bank selection. The article contrasts this with AXI data accesses, where the D-cache lookup handles one address per cycle, but it does not claim a general twofold throughput gain for every DTCM workload or vector load. Read that article comparison separately from the Cortex-M85 guide's LSU and L1 details below: the M85 guide describes same-cycle loads and their bank conflicts for that processor, not a general DTCM-versus-AXI throughput result. [Arm Cortex-M85 Processor Software Optimization Guide, r1p0, Issue 01 (26 April 2023), §4.3, p. 44]
+
+## Cortex-M85 r1p0 DTCM and L1 data-cache banks
+
+The Cortex-M85 guide says DTCM and the L1 data cache each have four 32-bit banks, selected by address bits `[3:2]`. Two load instructions issued in the same cycle to the same bank conflict: the second access stalls for one cycle while the first proceeds. The guide specifically recommends avoiding adjacent scalar loads and MVE gather loads that access the same bank where the code and access pattern allow it. [Arm Cortex-M85 Processor Software Optimization Guide, r1p0, Issue 01 (26 April 2023), §4.3, p. 44]
+
+For an address-bit illustration, addresses separated by 16 bytes have the same `[3:2]` bits and select the same bank; consecutive aligned 32-bit words cycle through the four `[3:2]` values. This illustrates bank selection only. Different-bank accesses are not a guarantee that all other pipeline, address, and memory conditions permit overlap.
+
+The guide distinguishes stores from this same-cycle load rule: buffering of store data decouples pipeline store-instruction flow from bank conflicts. It also says DTCM bank conflicts can occur between CPU and DMA accesses. The four banks can serve CPU and DMA, each consuming at most two banks on a sustained basis, with some conflict-related loss expected; DMA access is not free. [§4.3, p. 44]
+
+When comparing MVE scatter/gather with scalar accesses into vector registers, consider the available scalar and vector registers for holding addresses and how easily the access pattern can avoid bank conflicts. This is an implementation trade-off, not a universal gather speedup. [§4.10, p. 49]
 
 ## Cortex-M55 r1p1 vector-load conflict timing
 
