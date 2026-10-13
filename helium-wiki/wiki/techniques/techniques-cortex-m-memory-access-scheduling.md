@@ -1,8 +1,9 @@
 ---
-id: techniques-cortex-m55-memory-access-scheduling
-title: Schedule Cortex-M55 memory accesses using encoding and forwarding rules
+id: techniques-cortex-m-memory-access-scheduling
+title: Schedule Cortex-M52 and Cortex-M55 memory accesses by encoding and resource use
 type: techniques
 architectures:
+  - cortex-m52
   - cortex-m55
 tags:
   - instruction-scheduling
@@ -18,19 +19,24 @@ related:
   - hardware-dtcm-scatter-gather-banks
   - hardware-itcm-instruction-data-contention
   - techniques-helium-instruction-interleaving
-  - techniques-cortex-m55-latency-aware-scheduling
+  - techniques-cortex-m-latency-aware-scheduling
 sources:
   - https://support.arm.com/documentation/102692/0101
+  - https://support.arm.com/documentation/107730/0003
 aliases:
   - Cortex-M55 gather forwarding penalty
   - Cortex-M55 multi-register transfer timing
   - MVE memory throughput
   - Cortex-M55 scatter gather scheduling
   - Cortex-M55 memory access latency
-evidence_basis: Instruction timings and hazards are source-reported for Cortex-M55 r1p1, Issue 03. Layout and scheduling advice is an implementation implication; the guide reports no workload speedup.
+  - Cortex-M52 scalar and vector memory timing
+  - Cortex-M52 gather scatter writeback
+evidence_basis: Instruction timings and hazards are source-reported for Cortex-M52 r0p3 and Cortex-M55 r1p1, Issue 03. Layout and scheduling advice is an implementation implication; the guides report no workload speedup.
 ---
 
-When scheduling loads and stores on Cortex-M55 r1p1, distinguish instruction latency, transfer throughput, and waits for memory data. The guide reports different values for scalar multiple transfers, contiguous MVE accesses, and gather/scatter encodings; alignment, forwarding, pipeline use, and actual memory response can add constraints. The timings below are specific to Cortex-M55 r1p1, Issue 03, and are not measurements of an application's memory system. [Arm Cortex-M55 Processor Software Optimization Guide, r1p1, Issue 03, §2.2, pp. 13–15; §3.1, p. 16]
+Use this page when reviewing scalar or MVE memory operations on Cortex-M52 r0p3 or Cortex-M55 r1p1. Match transfer timing, pipeline, encoding, forwarding, and memory-wait guidance to the exact core; instruction tables do not measure the configured memory system.
+
+## Cortex-M55 r1p1, Issue 03
 
 ## Scalar load and store timing
 
@@ -69,3 +75,33 @@ The load/store address stage decomposes an unaligned access into constituent ali
 MVE overlap is decided using resource and data availability. In particular, arithmetic instructions cannot overlap with vector loads or stores that write back the base address to a scalar register; a dependency between a scalar and vector instruction also makes overlap unlikely. Do not infer that otherwise independent operations will overlap just because they use different pipelines. [§4.1, p. 46]
 
 For the separate one-cycle same-bank vector-load penalty in M55 r1p1 TCM, see [hardware-dtcm-scatter-gather-banks](../hardware/hardware-dtcm-scatter-gather-banks.md). General MVE interleaving limits are covered by [techniques-helium-instruction-interleaving](techniques-helium-instruction-interleaving.md). Confirm the emitted encoding, addresses, dependencies, and memory placement before changing a hot path; preserve access and ordering semantics. The guide does not report measured gains from these schedule or layout changes.
+
+
+## Cortex-M52 r0p3, Issue 03
+
+On M52, distinguish instruction-table latency and throughput from the response time of the configured memory system. An unaligned request is split into aligned LSU requests and the returned data is recombined; the guide gives no single fixed unaligned-access penalty. The LSU stalls the DPU until read data is available from M-AXI or TCM. Device-memory accesses are selected after commit and cannot be speculative. Natural alignment is therefore a candidate layout choice when it preserves the data format and semantics, not a source-reported cycle guarantee. [Arm China Cortex®-M52 Processor Software Optimization Guide, document 107730_0003_03_en, §2.2, pp. 12–14]
+
+| M52 scalar transfer group | Latency / throughput | Notes |
+| --- | --- | --- |
+| Basic, subword, acquire, exclusive, release loads and stores | 2 / 1 | Preserve atomic, acquire/release, and access-width semantics. |
+| LDRD and STRD | 3 / 1/2 | The M52 guide reports one 32-bit access per cycle. |
+| LDM/STM multiple transfers, including narrow LDM/POP and STM/PUSH | N + 1 / 1/N | N is the number of registers; the core supports one 32-bit access per cycle. Narrow single loads/stores have issue field 01; multiple-transfer rows have field 00. |
+
+For scalar floating-point transfers, the table reports VLDR T2/T3 at latency 2 and throughput 1, VLDR T1 at 3 and 1/2, VSTR T2/T3 at 1 and 1, and VSTR T1 at 2 and 1/2. The VLDM, VLLDM, VSCCLRM, VLSTM, and VSTM multiple rows print latency N + 1 and throughput 1/N. The accompanying note specifies one 32-bit access per cycle and defines N for single-precision store-multiple as num_regs and double-precision store-multiple as 2 × num_regs. It is a store-specific definition even though the table also has load and context rows; the note does not clearly define N for every load or context row. [§3.9, pp. 31–33]
+
+| M52 vector-memory form | Source-reported latency / throughput | Pipeline and qualification |
+| --- | --- | --- |
+| Continuous VLDRB T1/T5, VLDRH T2/T6, VLDRW T7; deinterleaving VLD2/VLD4 T1 | 2 / 1/4 | LS. The figures are per-instruction timings, not bytes transferred per instruction. |
+| Gather VLDRB T1, element size 8 / 16 / 32 bits | 17 / 1/16; 9 / 1/8; 2 / 1/4 | LS and VF. |
+| Gather VLDRH T2, element size 16 / 32 bits | 9 / 1/8; 2 / 1/4 | LS and VF. |
+| Gather VLDRW T3 and VLDRD T4 | 2 / 1/4 | LS and VF. |
+| Gather VLDRW T5 and VLDRD T6, non-writeback / writeback | 2 / 1/4; 9 / 1/8 | LS and VF; the T5/T6 writeback operation executes in VF. |
+| Continuous VSTRB/H/W T1/T2/T5/T6/T7; interleaving VST2/VST4 T1 | 2 / 1/4 | LS. The source table labels the first group “Continuous Vector Load Store” despite listing store mnemonics. |
+| Scatter VSTRB T1, element size 8 / 16 / 32 bits | 17 / 1/16; 9 / 1/8; 2 / 1/4 | LS and VF. |
+| Scatter VSTRH T2, element size 16 / 32 bits | 9 / 1/8; 2 / 1/4 | LS and VF. |
+| Scatter VSTRW T3 and VSTRD T4 | 2 / 1/4 | LS and VF. |
+| Scatter VSTRW T5 and VSTRD T6, non-writeback / writeback | 2 / 1/4; 9 / 1/8 | LS and VF; the T5/T6 writeback operation executes in VF. |
+
+The table values do not imply that every data layout, access, or memory target reaches the listed maximum rate. The M52 guide gives no TCM bank count or same-bank penalty, no separate ITCM placement recommendation, no M55-style extra forwarding latency for a T1 gather, and no M55 dependent-store producer-latency claim. Keep those other-core details in their existing scoped sections. [§§3.6–3.7, pp. 26–29; §3.9, pp. 31–33; §§3.14–3.15, pp. 43–44]
+
+M52 also excludes all scalar loads and stores from overlap with vector instructions; a scalar/vector dependency is another overlap risk. Gather/scatter instructions may use both LS and VF, and T5/T6 writeback uses VF, so address updates are not free. Evaluate any alternative against address-register pressure, dependencies, full instruction cost, and preserved memory semantics. See [Helium instruction interleaving](techniques-helium-instruction-interleaving.md) for overlap conditions. These are implementation implications from source-reported behavior, not measured workload gains. [§4.1, p. 45]

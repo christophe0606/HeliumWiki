@@ -1,8 +1,9 @@
 ---
 id: techniques-cortex-m-branch-prediction
-title: Enable branch prediction and place branches for the target Cortex-M revision
+title: Use Cortex-M52, Cortex-M55, and Cortex-M85 branch timing and prediction guidance
 type: techniques
 architectures:
+  - cortex-m52
   - cortex-m55
   - cortex-m85
 tags:
@@ -16,24 +17,31 @@ confidence: source-reported
 reproducibility: snippet
 related:
   - techniques-armv81m-feature-initialization
-  - techniques-cortex-m55-latency-aware-scheduling
+  - techniques-cortex-m-latency-aware-scheduling
   - techniques-cortex-m85-latency-aware-scheduling
-  - techniques-cortex-m55-thumb-dual-issue
+  - techniques-cortex-m-thumb-dual-issue
   - techniques-helium-low-overhead-loop-alignment
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://support.arm.com/documentation/102692/0101
   - https://support.arm.com/documentation/107950/0100
+  - https://support.arm.com/documentation/107730/0003
 aliases:
   - Cortex-M85 CCR BP
   - Cortex-M55 r1 static branch prediction
   - ACTLR DISLOBR
   - Cortex-M55 branch latency
   - Cortex-M55 low-overhead loop timing
+  - Cortex-M52 branch instruction timing
+  - Cortex-M52 low-overhead loop timing
 prerequisites:
   - Identify the Cortex-M core and revision before changing prediction controls.
   - Make register changes from suitable privileged initialization code.
 ---
+
+Use this page when evaluating branch timing, loop control, or prediction settings on Cortex-M52 r0p3, Cortex-M55 r1p1, or Cortex-M85 r1p0. Branch controls and timing depend on the core and revision, so follow the matching core-specific section. Reported instruction timings are source data, not application measurements.
+
+## Cortex-M85 and Cortex-M55 branch-prediction controls
 
 Branch-prediction controls differ between Cortex-M85 and Cortex-M55 revisions. Use the control that applies to the exact core and revision; the settings below are source-reported and should not be generalized across revisions.
 
@@ -48,6 +56,28 @@ __ISB();
 Cortex-M55 r1 supports limited static branch prediction by reusing low-overhead branch hardware, which the article says may help in a few cases. On r1p0, it is disabled by default and can be enabled by clearing bit 5 (`DISLOBR`) in `ACTLR`. On r1p1, that bit is cleared by default. This is distinct from Cortex-M85's `CCR.BP` control, and the article makes no corresponding claim for Cortex-M55 r0.
 
 Check the core revision and the intended low-overhead branch behavior before changing `ACTLR`; do not assume that enabling this limited M55 behavior has the same effect as setting M85 `CCR.BP`. See [techniques-armv81m-feature-initialization](techniques-armv81m-feature-initialization.md) for the separate low-overhead branch enablement setting.
+
+## Cortex-M52 r0p3, Issue 03 branch timing
+
+The M52 guide reports branch instruction behavior and timing but gives no Cortex-M52 CCR.BP or ACTLR configuration sequence. Keep the branch-prediction controls above scoped to the M85 and M55 sources that describe them. On M52, use the timing rows for the emitted encoding and loop condition; latency and throughput are instruction-table values, not measured loop costs. [Arm China Cortex®-M52 Processor Software Optimization Guide, document 107730_0003_03_en, §§2.2–3.2, pp. 11–17]
+
+The pipeline changes the PC early for common conditional, indirect, and BX LR cases. For a load-multiple operation that branches, the guide says the PC is loaded from memory first so target instructions can be fetched while the remaining registers load; this is a pipeline description, not an architectural license to reorder program-visible loads. [§2.2, p. 12]
+
+| M52 branch or loop instruction | Source-reported timing | Qualification |
+| --- | --- | --- |
+| 32-bit Branch Future family: BF, BFCSEL, BFL, BFLX, BFX | Latency 1, throughput 1. | These instructions act as NOPs; the timing does not establish a branch-prediction benefit. |
+| 32-bit immediate B (T3/T4) | Latency 1(2), throughput 1(1/2). | For the documented backward-branch condition, subsequent branches are predicted taken and latency reduces to 0 when the branch is implied. This conditional entry does not make every backward branch or first traversal free. |
+| 32-bit immediate BL (T1) | Latency 2, throughput 1/2. | Keep this row distinct from immediate B. |
+| Low-overhead loop setup/count: DLS, DLSTP, LCTP | Latency 1, throughput 1. | Individual instruction timing, not a per-iteration loop cost. |
+| Low-overhead loop end: LE (T1/T2), LETP (T3) | Latency 3, throughput 1/3. | Do not interpret this as three added cycles on every optimized-loop iteration. |
+| While-loop: WLS (T1), WLSTP (T3) | Latency 1(3), throughput 1(1/3). | The guide attributes the 3-cycle latency penalty to the case where the while loop is not executed. |
+| 16-bit immediate B (T2) and B (T1) | Both have latency 1(2), issue field 11; T2 throughput is 2 and T1 throughput is 1. | For the backward-branch condition, the same implied-branch note applies. |
+| 16-bit CBZ/CBNZ, BXNS, BLX/BLXNS | CBZ/CBNZ and BXNS: latency 3, throughput 1, field 00. BLX/BLXNS: 3, 1, field 01. | Check the exact branch form; these rows have distinct issue eligibility. |
+| 16-bit BX with destination LR | The row prints latency 3(2), throughput 1, field 11. | The note attributes the reduced latency to late forwarding for branch-exchange instructions using LR. |
+
+The branch-pairing note on p. 17 is internally unclear: it says a conditional branch can be dual-issued as the first instruction in a pair only if the first instruction is an unconditional immediate B (T2). Preserve the wording as an ambiguity and do not derive a pairing recipe. The guide also says immediate branches, low-overhead-loop instructions, and Branch Future NOPs may overlap tick 3 of a preceding MVE instruction, subject to pipeline hazards; a scalar cannot overlap the final vector instruction marked with implicit LE. See [Helium instruction interleaving](techniques-helium-instruction-interleaving.md) for the M52-specific overlap constraints. [§3.2, pp. 16–17; §4.1, p. 45]
+
+The guide does not state an M52 branch-target alignment rule or measured speedup for these branch timings. Inspect the actual branch encoding and loop behavior on the target workload.
 
 ## Cortex-M55 r1p1 branch and loop timing
 

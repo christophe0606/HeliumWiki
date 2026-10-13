@@ -16,6 +16,8 @@ Identify if the optimization guideline is related to:
 Use the skill in helium-wiki/SKILL.md to find related optimization guidelines.
 If no optimization guideline is found, create a new one following the instructions below.
 If an optimization guideline is found, update it with any new relevant information and don't create a new page.
+After creation or update, validate and correct the page following instruction below.
+
 
 # Wiki page creation instructions
 Create a wiki page in the right wiki folder in helium-wiki/wiki.
@@ -31,6 +33,15 @@ The id must begin with <type>- where <type> is the type of the wiki page (e.g., 
 Links between wiki pages are made though their id and corresponding yaml fields.
 The source in yaml header is either a URL or the name of an official document
 
-The markdown must start with a short paragraph that describes when the optimization guideline should be applied and what problem it solves.
+The markdown must start, after the yaml header, with a short paragraph that describes when the optimization guideline should be applied and what problem it solves.
 The markdown MUST NOT contain any customer or partner proprietary information.
+
+# Page validation and correction
+The title of the page must be consistent with its content.
+For instance, if the page is about a specific hardware feature, the title should clearly reflect that feature.
+For instance, if the page has sections for different cortex-m core, then the title cannot reference only one core.
+If the title must be changed, the id of the page must also be updated to reflect the new title and all the links pointing to it.
+The markdown must start, after the yaml header, with a short paragraph that describes when the optimization guideline should be applied and what problem it solves.
+The markdown MUST NOT contain any customer or partner proprietary information.
+Analyze the generated markdown to ensure it follows those guidelines and correct it if necessary.
 """

@@ -22,7 +22,7 @@ related:
   - techniques-cortex-m-branch-prediction
   - techniques-helium-low-overhead-loop-alignment
   - techniques-armv8m-cache-management
-  - techniques-cortex-m55-latency-aware-scheduling
+  - techniques-cortex-m-latency-aware-scheduling
   - techniques-helium-instruction-interleaving
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips

@@ -1,6 +1,6 @@
 ---
 id: hardware-itcm-instruction-data-contention
-title: Avoid instruction and constant-data contention in ITCM
+title: Avoid instruction and constant-data contention in Cortex-M55 and Cortex-M85 ITCM
 type: hardware
 architectures:
   - cortex-m55

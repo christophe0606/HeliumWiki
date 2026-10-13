@@ -1,8 +1,9 @@
 ---
-id: techniques-cortex-m55-floating-point-scheduling
-title: Schedule Cortex-M55 floating-point instructions by precision and dependencies
+id: techniques-cortex-m-floating-point-scheduling
+title: Schedule Cortex-M52 and Cortex-M55 floating-point instructions by precision and dependencies
 type: techniques
 architectures:
+  - cortex-m52
   - cortex-m55
 tags:
   - instruction-scheduling
@@ -15,10 +16,11 @@ reproducibility: concept
 related:
   - languages-c-float16-half-precision
   - techniques-helium-instruction-interleaving
-  - techniques-cortex-m55-latency-aware-scheduling
-  - techniques-cortex-m55-memory-access-scheduling
+  - techniques-cortex-m-latency-aware-scheduling
+  - techniques-cortex-m-memory-access-scheduling
 sources:
   - https://support.arm.com/documentation/102692/0101
+  - https://support.arm.com/documentation/107730/0003
 aliases:
   - Cortex-M55 floating-point scheduling
   - Cortex-M55 FP instruction timing
@@ -26,10 +28,14 @@ aliases:
   - Cortex-M55 VFMA versus VMLA latency
   - Cortex-M55 double precision latency
   - Cortex-M55 floating-point divide and square root
-evidence_basis: Timing values and pipeline behavior are source-reported for Cortex-M55 r1p1, Issue 03. Scheduling implications preserve dependencies and numerical behavior; the guide provides no measured speedups.
+  - Cortex-M52 scalar floating-point timing
+  - Cortex-M52 MVE floating-point reductions
+evidence_basis: Timing values and pipeline behavior are source-reported for Cortex-M52 r0p3 and Cortex-M55 r1p1, Issue 03. Scheduling implications preserve dependencies and numerical behavior; the guides provide no measured speedups.
 ---
 
-For floating-point hot paths on Cortex-M55 r1p1, use the timing row for the operation and precision actually emitted, and account for dependent-result latency separately from throughput. The guide's scalar half/single/double timings differ, and its fused and chained multiply-accumulate instructions have different latency and rounding behavior. The values below are specific to Cortex-M55 r1p1, Issue 03; they are not M85 timings or end-to-end performance measurements. [Arm Cortex-M55 Processor Software Optimization Guide, r1p1, Issue 03, §3.1, p. 16; §3.9, Tables 3-15, pp. 32–34]
+Use this page when checking scalar or MVE floating-point dependencies and operation timing on Cortex-M52 r0p3 or Cortex-M55 r1p1. Match precision, instruction form, and pipeline rules to the target core; timing tables are source-reported characteristics, not application performance measurements.
+
+## Cortex-M55 r1p1, Issue 03
 
 ## Scalar floating-point timing by precision
 
@@ -63,3 +69,30 @@ Most listed MVE floating-point arithmetic, compare, convert, multiply, absolute-
 The guide describes MVE as a two-beat-per-tick machine that can overlap up to two beatwise instructions when they use different EPU pipelines. Apply that rule with the table's pipeline assignments and dependencies: floating-point `VPT` uses the F pipe and cannot overlap with following I-pipe instructions because there is no F-to-I forwarding path. For general interleaving guidance and its limits, see [techniques-helium-instruction-interleaving](techniques-helium-instruction-interleaving.md). [§3.1, p. 16; §3.12, Table 3-18, p. 42 and note 2, p. 43]
 
 These instruction timings and overlap rules help identify dependency and throughput constraints in a candidate schedule. Inspect the final instruction sequence and preserve its floating-point semantics; the guide does not report application-level gains from rearranging these operations.
+
+
+## Cortex-M52 r0p3, Issue 03
+
+For M52 floating-point work, use the row for the actual operation and precision, and keep dependent-result latency separate from throughput. The EPU reads operands in E0, performs arithmetic in E1, and normalizes/rounds results in E2. Same-class E1/E2 results can forward to E0; forwarding is not supported across classes, including floating point to fixed point or vector to scalar floating point. Double-precision operations can recirculate partial results through E0/E1. [Arm China Cortex®-M52 Processor Software Optimization Guide, document 107730_0003_03_en, §2.2, pp. 13–14; §3.1, p. 15]
+
+| Scalar operation | Half/single latency; throughput | Double latency; throughput |
+| --- | --- | --- |
+| VADD, VSUB | 2; 1 | 15; 1/14 |
+| VMUL, VNMUL | 2; 1 | 21; 1/20 |
+| VFMA, VFNMA | 2; 1 | 24; 1/23 |
+| VMLA, VNMLA | 4; 1/3 | 36; 1/35 |
+
+The table gives the longer double-precision values in parentheses. The guide describes VMLA.F16 and VMLA.F32 as a multiply followed serially by an add in E1, with full rounding after each operation in E2. VFMA is fused and has different rounding semantics. Where the program's numerical, rounding, and exception requirements permit, the fused form is a candidate to evaluate; it is not a universally equivalent replacement and the guide reports no measured speedup. [§2.2, p. 14; §3.9, pp. 31–33]
+
+| Divide or square-root case | Half precision | Single precision | Double precision |
+| --- | --- | --- | --- |
+| Ordinary input: latency; throughput | 11; 1/10 | 17; 1/16 | 32; 1/31 |
+| Input zero, infinity, NaN, or invalid operation: latency; throughput | 5; 1/4 | 5; 1/4 | 5; 1/4 |
+
+The ordinary rows apply to VDIV and VSQRT as printed. The guide says divides use an iterative algorithm and block subsequent divide operations until complete; it does not explicitly say that a square-root operation blocks later divides in the same way. The special-input row is timing data, not a reason to alter inputs or arithmetic semantics. [§3.9, pp. 31–33]
+
+Other scalar FP absolute, compare, conversion, move, negate, and select rows report latency 2 and throughput 1. For MVE, common floating-point absolute, arithmetic, compare, convert, multiply, and negate rows use VF and report latency 2, throughput 1/4. The MVE floating-point reductions VMAXNMV/VMINNMV and VMAXNMAV/VMINNMAV report 5 and 1/4 for single precision, and 9 and 1/8 for half precision; these are beatwise multicycle operations. Half precision is not universally lower latency. [§3.9, pp. 31–33; §3.12, pp. 40–42]
+
+MVE VPT and VCMP floating-point rows also use VF with latency 2 and throughput 1/4. The M52 guide does not state the M55-specific F-to-I VPT restriction, although its general no-cross-class EPU forwarding rule still matters for dependent instructions. On M52, integer-vector and floating-point operations share VF, so simply alternating those data types does not create different-pipe overlap. For the full M52 overlap rules, see [Helium instruction interleaving](techniques-helium-instruction-interleaving.md). [§2.2, pp. 13–14; §§3.12–3.13, pp. 40–42; §4.1, p. 45]
+
+These timings support dependency and precision analysis in existing code. Preserve the program's floating-point semantics, inspect the emitted operations, and measure the workload before attributing a gain to a schedule or instruction choice.

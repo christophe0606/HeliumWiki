@@ -1,8 +1,9 @@
 ---
-id: techniques-cortex-m85-cache-prefetch
-title: Use Cortex-M85 prefetch and transient hints to manage streaming cache traffic
+id: techniques-cortex-m-cache-prefetch
+title: Evaluate Cortex-M52 and Cortex-M85 hardware prefetch and core-specific cache hints
 type: techniques
 architectures:
+  - cortex-m52
   - cortex-m85
 tags:
   - cache
@@ -15,16 +16,24 @@ reproducibility: concept
 related:
   - techniques-armv8m-cache-management
   - techniques-cortex-m85-memory-access-scheduling
+  - techniques-cortex-m-memory-access-scheduling
   - hardware-dtcm-scatter-gather-banks
 sources:
   - https://support.arm.com/documentation/107950/0100
+  - https://support.arm.com/documentation/107730/0003
 aliases:
   - Cortex-M85 hardware data prefetch
   - M85 PLD PLDW hints
   - M85 transient cache attribute
   - Cortex-M85 streaming cache traffic
-evidence_basis: Arm Cortex-M85 r1p0, Issue 01 cache prefetch, hint, and transient replacement behavior. Suggested use of transient attributes is an implementation inference from the source-reported replacement preference.
+  - Cortex-M52 hardware data prefetch
+  - Cortex-M52 PREFETCH and PFCR
+evidence_basis: M52 r0p3 reports conditional hardware-prefetch inclusion and PFCR control; M85 r1p0 reports separate stream coverage, hint, and transient replacement behavior. Any cache-use advice is core-scoped and source-reported or explicitly identified as inference.
 ---
+
+Use this page when checking data-prefetch support or cache hints on Cortex-M52 r0p3 or Cortex-M85 r1p0. Prefetcher inclusion, stream coverage, hint semantics, and replacement behavior differ by core and system configuration, so follow the matching section. The guides provide no measured workload speedups.
+
+## Cortex-M85 r1p0, Issue 01
 
 For streaming data on Cortex-M85 r1p0, first determine whether the configured L1 data cache and hardware prefetcher cover the access pattern. Data-cache misses stall the pipeline, but the guide reports no measured prefetch speedup. Its documented hardware coverage is limited to constant-stride streams and has an 8 KB boundary, so irregular gathers and other patterns need separate evaluation. [Arm Cortex-M85 Processor Software Optimization Guide, r1p0, Issue 01 (26 April 2023), section 2.2, page 12; section 4.7, page 45]
 
@@ -47,3 +56,14 @@ The transient memory attribute is implemented as a data-side replacement hint: w
 As an implementation inference from that replacement preference, if platform memory-attribute setup supports it and transient data would compete with reusable clean cache data, consider marking that data transient. The guide excerpt gives no register encoding or setup sequence for the attribute, and the hint does not guarantee a particular cache outcome. [section 4.9, page 45]
 
 These recommendations are scoped to Cortex-M85 r1p0, Issue 01 and the documented cache configuration. Cache-line size, software-prefetch distance, and measured performance effects are not provided by this guide; evaluate them on the target rather than filling in missing values. See [Armv8-M cache management](techniques-armv8m-cache-management.md) for cache activation and maintenance guidance. [sections 2.2, 3.8, and 4.7-4.9, pages 12, 28, and 45]
+
+
+## Cortex-M52 r0p3, Issue 03
+
+The M52 guide describes a hardware data prefetcher that monitors line-fill addresses for streaming patterns, predicts where later fills may occur, and attempts to fetch data from the system into the D-cache before use. The guide says this can hide load latency, but reports no measured workload speedup. Check the actual SoC configuration before assuming the feature is present: PREFETCH determines inclusion and is applicable only when D-CACHE is present and the main interface is configured for M-AXI/AXI. When included, software can control the prefetcher through the Prefetcher Control Register (PFCR); the guide refers to the Cortex-M52 Technical Reference Manual for PFCR details. It does not provide PFCR bit values, defaults, or an initialization sequence. [Arm China Cortex®-M52 Processor Software Optimization Guide, document 107730_0003_03_en, §4.2, p. 46]
+
+The M52 guide lists PLI at latency 1 and throughput 1 and says it acts as a NOP. It lists PLD/PLDW at latency 1 and throughput 1, but does not specify M52 read/write-allocation semantics, a useful software-prefetch distance, or a measured benefit. Do not import M85 hint semantics or advice against software prefetch into M52. [§3.8, p. 30]
+
+The M52 guide does not document the M85 constant-stride detection range, two-cache-line observation window, 8 KB boundary, transient replacement hint, or a blanket prohibition on software prefetch. Keep those details in the M85 section only. The revision appendix says the r0p3 release added §4.2 and cites page 45, while the actual hardware-prefetcher section is on page 46; citations here use the section's actual page. [Appendix A, p. 47; §4.2, p. 46]
+
+For memory-transfer timing on M52, see [Cortex-M52 and Cortex-M55 memory-access scheduling](techniques-cortex-m-memory-access-scheduling.md).

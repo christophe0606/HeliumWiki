@@ -1,8 +1,9 @@
 ---
-id: techniques-cortex-m55-thumb-dual-issue
-title: Use eligible 16-bit Thumb encodings for Cortex-M55 dual issue
+id: techniques-cortex-m-thumb-dual-issue
+title: Use eligible 16-bit Thumb encodings for Cortex-M52 and Cortex-M55 dual issue
 type: techniques
 architectures:
+  - cortex-m52
   - cortex-m55
 tags:
   - instruction-scheduling
@@ -10,18 +11,23 @@ tags:
 confidence: source-reported
 reproducibility: concept
 related:
-  - techniques-cortex-m55-latency-aware-scheduling
+  - techniques-cortex-m-latency-aware-scheduling
   - techniques-cortex-m-branch-prediction
 sources:
   - https://support.arm.com/documentation/102692/0101
+  - https://support.arm.com/documentation/107730/0003
 aliases:
   - Cortex-M55 Thumb dual issue
   - Cortex-M55 16-bit instruction pairing
   - Cortex-M55 Thumb instruction slots
-evidence_basis: Arm's Cortex-M55 r1p1, Issue 03 instruction tables report the encodings eligible for limited dual issue. Recommendations to inspect and select eligible encodings are implementation implications; no speedup is measured.
+  - Cortex-M52 Thumb dual issue
+  - Cortex-M52 16-bit instruction slots
+evidence_basis: Cortex-M52 r0p3 and Cortex-M55 r1p1, Issue 03 instruction tables report eligible encodings for limited dual issue. Recommendations to inspect encodings are implementation implications; no speedup is measured.
 ---
 
-When reviewing a Cortex-M55 r1p1 hot path, consider whether equivalent operations can use 16-bit Thumb encodings that the core can dual-issue. Cortex-M55 has limited dual issue for eligible 16-bit instructions: its fetch unit reads 32-bit words containing either one 32-bit instruction or two 16-bit instructions, and the fetch-data stage can issue one 32-bit instruction or up to two 16-bit instructions. The tables identify slot eligibility by instruction group and list important exceptions. This is an instruction-selection opportunity, not a guarantee that arbitrary adjacent narrow instructions will issue together. [Arm Cortex-M55 Processor Software Optimization Guide, r1p1, Issue 03, §2.2, pp. 12–13; §3.1, p. 16]
+Use this page when reviewing a hot path where 16-bit Thumb instruction pairing may affect execution on Cortex-M52 r0p3 or Cortex-M55 r1p1. Each core has its own eligibility and timing rows; use the matching section and verify the emitted instructions, dependencies, and operands. No speedup is measured by either guide.
+
+## Cortex-M55 r1p1, Issue 03
 
 ## Read the slot and timing fields together
 
@@ -47,3 +53,23 @@ These are examples, not a complete pairing recipe. Use the exact table row for t
 - **NOP and IT:** Their 16-bit table rows are marked `11` with throughput 2, but this does not make inserting NOPs a useful general optimization. [§3.8, Table 3-14, p. 31]
 
 For implementation work, inspect the assembled hot path to confirm which Thumb widths and operands the compiler emitted, then check whether the eligible instructions actually form legal pairs. Any expected throughput benefit is an inference from the guide's tables and must be measured on the target workload; the guide supplies no measured speedup for this instruction-selection strategy. The timing tables describe instruction behavior and do not by themselves establish end-to-end performance. [§2.2, pp. 12–13; §3.1, p. 16]
+
+
+## Cortex-M52 r0p3, Issue 03
+
+The M52 supports limited dual issue for eligible 16-bit Thumb instructions. The IFU fetches 32 bits at a time and the fetch-data stage can issue one 32-bit instruction or up to two 16-bit instructions; decode has two register-read ports for single issue and a third for arithmetic dual-issue cases. Hazards and forwarding still constrain a pair. The guide defines latency as the minimum delay seen by a dependent operation and throughput as a maximum instruction rate, so neither alone proves that a particular pair issues together. [Arm China Cortex®-M52 Processor Software Optimization Guide, document 107730_0003_03_en, §2.2, pp. 11–12; §3.1, p. 15]
+
+In the table, 01 means slot 0 only, 11 means either slot, and 00 means not dual-issuable. Parenthesized table values are retained as printed.
+
+| 16-bit group or form | M52 latency / throughput / issue field | Qualification |
+| --- | --- | --- |
+| Immediate ADD, SUB, and CMP forms | Common rows report latency 1, throughput 2, field 11. | The narrow SP rows are exceptions: selected ADD SP forms report latency 2 and throughput 1/2 because the result is recycled for the stack-limit check, even where the table shows 11. |
+| Register ALU forms such as ADC, ADD, AND, BIC, CMP, EOR, ORR, REV, REV16, REVSH, and TST | Common rows report latency 1, throughput 1, field 01; CMN (register) (T1) is 00. | For ADD (register) (T2), the field is printed 01(00); the note says it does not dual-issue when Rd=PC or Rm=PC. |
+| SXTB, SXTH, UXTB, UXTH (T1) | Latency 1, throughput 2, field 01. | Keep the source's throughput and slot field together even though they may look unusual; the M55 table uses a different field. |
+| MOV forms | MOV (immediate) (T1): 1, 2, 11; register and shifted-register forms: 1, 1, 01. A separate MOV (T1) row prints 1(4), 2(1/4), 11(00). | The note says MOV PC, Rm can only be single-issued. |
+| Branches | B (T2): 1(2), throughput 2, 11; B (T1): 1(2), throughput 1, 11. CBZ/CBNZ and BXNS: 3, 1, 00; BLX/BLXNS: 3, 1, 01; the LR destination BX row prints 3(2), 1, 11. | The LR row's note attributes reduced latency to late forwarding. Note 3's conditional-branch pairing sentence is internally unclear; do not derive a branch-pair recipe from it. See [branch timing and prediction guidance](techniques-cortex-m-branch-prediction.md) for M52 branch timing context. |
+| MUL (T1), single narrow loads and stores | MUL: 2, 1, 01; listed single loads/stores: 2, 1, 01. | Use the exact operand and encoding row; these properties do not establish that adjacent operations can pair. |
+| Narrow multiple transfers: LDM/POP, STM/PUSH | N + 1 latency, 1/N throughput, field 00. | Here N = num_regs; observe the multiple-transfer cost and do not treat these as dual-issue candidates. |
+| NOP (T1) and IT (T1) | Latency 1, throughput 2, field 11. | The entries describe existing instruction behavior, not a reason to insert NOPs. |
+
+These are representative eligibility and timing rows, not a complete pairing recipe. Check the assembled hot path, dependencies, flags, PC/SP effects, and legal pairing rules. Expected throughput improvements are an inference to measure on the workload; the guide reports no speedup. [§§3.2–3.8, pp. 16–30]

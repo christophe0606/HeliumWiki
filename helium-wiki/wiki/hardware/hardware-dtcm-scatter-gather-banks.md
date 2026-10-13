@@ -1,6 +1,6 @@
 ---
 id: hardware-dtcm-scatter-gather-banks
-title: Place concurrent loads across DTCM banks and Cortex-M85 data-cache banks
+title: Place loads across Cortex-M55 and Cortex-M85 DTCM banks and M85 data-cache banks
 type: hardware
 architectures:
   - cortex-m55
@@ -20,7 +20,7 @@ related:
   - patterns-cmsis-dsp-helium-migration
   - techniques-helium-instruction-interleaving
   - techniques-armv8m-cache-management
-  - techniques-cortex-m55-memory-access-scheduling
+  - techniques-cortex-m-memory-access-scheduling
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://support.arm.com/documentation/102692/0101
@@ -54,4 +54,4 @@ The Cortex-M55 r1p1, Issue 03 guide states that its TCM has four banks, each 32 
 
 As an original illustration of the stated bit rule, `0x20010000` and `0x20010010` both have bits [3:2] equal to `00`, so requests for both in one vector load map to the same bank. An illustrative address such as `0x20010004` has bits [3:2] equal to `01` and selects a different bank. These are address-bit examples, not measured layouts or a guarantee that every different-bank access can proceed simultaneously under all other resource and data conditions. [§4.1.3, p. 47]
 
-When the application's vector-load access pattern permits it, consider a data layout or stride that places concurrently requested words in different banks while preserving the program's access semantics. Verify the actual addresses and workload: the guide establishes the same-bank conflict condition and penalty, not a general throughput gain from changing layout. See [techniques-cortex-m55-memory-access-scheduling](../techniques/techniques-cortex-m55-memory-access-scheduling.md) for related memory-access timing guidance.
+When the application's vector-load access pattern permits it, consider a data layout or stride that places concurrently requested words in different banks while preserving the program's access semantics. Verify the actual addresses and workload: the guide establishes the same-bank conflict condition and penalty, not a general throughput gain from changing layout. See [techniques-cortex-m-memory-access-scheduling](../techniques/techniques-cortex-m-memory-access-scheduling.md) for related memory-access timing guidance.

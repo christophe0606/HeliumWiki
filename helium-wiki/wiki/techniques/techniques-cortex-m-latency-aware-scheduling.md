@@ -1,8 +1,9 @@
 ---
-id: techniques-cortex-m55-latency-aware-scheduling
-title: Schedule scalar Cortex-M55 instructions using latency and dependency costs
+id: techniques-cortex-m-latency-aware-scheduling
+title: Schedule Cortex-M52 and Cortex-M55 scalar instructions by latency and dependencies
 type: techniques
 architectures:
+  - cortex-m52
   - cortex-m55
 tags:
   - instruction-scheduling
@@ -10,20 +11,25 @@ tags:
 confidence: source-reported
 reproducibility: concept
 related:
-  - techniques-cortex-m55-thumb-dual-issue
+  - techniques-cortex-m-thumb-dual-issue
   - techniques-helium-instruction-interleaving
-  - techniques-cortex-m55-memory-access-scheduling
-  - techniques-cortex-m55-floating-point-scheduling
+  - techniques-cortex-m-memory-access-scheduling
+  - techniques-cortex-m-floating-point-scheduling
 sources:
   - https://support.arm.com/documentation/102692/0101
+  - https://support.arm.com/documentation/107730/0003
 aliases:
   - Cortex-M55 scalar instruction scheduling
   - Cortex-M55 instruction latency
   - scalar Thumb scheduling
-evidence_basis: Arm's Cortex-M55 pipeline description and instruction timing tables; timing figures are source-reported, while scheduling choices below are implications rather than measured speedups.
+  - Cortex-M52 scalar instruction scheduling
+  - Cortex-M52 instruction latency and dependency costs
+evidence_basis: Cortex-M52 r0p3 and Cortex-M55 r1p1 pipeline descriptions and instruction timing tables are source-reported; scheduling choices are implications rather than measured speedups.
 ---
 
-For hand-scheduled Thumb code or hot-path compiler output on Cortex-M55 r1p1, Issue 03, account for the actual instruction encoding and producer-to-consumer latency. A sequence of nominally simple instructions can still be limited by a dependent chain, a shifted operand, a stack-pointer update, or a long divide. The figures below cover scalar integer instructions; they do not transfer to Cortex-M85, floating-point, or MVE timing. [Arm Cortex-M55 Processor Software Optimization Guide, §2.2, pp. 11–15; §3.1, p. 16]
+Use this page when reviewing hand-scheduled Thumb code or hot-path compiler output on Cortex-M52 r0p3 or Cortex-M55 r1p1. Match the core, encoding, operand conditions, and dependencies to its own timing tables; the sections below keep each core's rules separate. These figures are source-reported instruction characteristics, not application measurements.
+
+## Cortex-M55 r1p1, Issue 03
 
 ## Read the timing values as separate measures
 
@@ -58,3 +64,25 @@ The same miscellaneous table says PLI acts as a NOP, so do not infer a prefetch 
 ## Limits
 
 The table values describe instruction timing with required resources and data available; they are not end-to-end measurements. The pipeline overview says unaligned accesses are decomposed into aligned requests and stall the original instruction in EX, and the load/store unit stalls the DPU until read data is available. Check the complete hot path and target binary when memory or instruction-fetch behavior can affect the result. No measured speedups are supplied by this guide. [§2.2, pp. 12–15; §§3.1, 3.3–3.8, pp. 16–31]
+
+
+## Cortex-M52 r0p3, Issue 03
+
+Cortex-M52 scalar code should be reviewed against the actual Thumb encoding, operand shift, destination register, and producer-consumer dependency. The processor is fully in order: a decode or execution stall prevents later instructions from progressing. Arithmetic operands are read in decode, and EX/CX results can forward to decode; latency and throughput remain separate source-reported measures, not application cycle counts. [Arm China Cortex®-M52 Processor Software Optimization Guide, document 107730_0003_03_en, §2.2, pp. 10–14; §3.1, p. 15]
+
+| Instruction group or condition | M52 timing reported by the guide | Scheduling implication |
+| --- | --- | --- |
+| Many 32-bit Thumb basic ALU, arithmetic, logical, bit-field, saturating, packed, and extend-add rows | Commonly latency 1, throughput 1. Exceptions include `USAD8`/`USADA8` and `TT`, `TTT`, `TTA`, `TTAT`, reported as latency 2, throughput 1. | Use the row for the operation and encoding in the final binary; do not assign one timing to every SIMD or saturating instruction. |
+| Note 1 tagged `ADD`/`SUB` register and SP-plus-register forms | Non-`LSL`, or `LSL` by more than 4: latency 2, throughput 1. Otherwise 1 and 1. If the result writes SP, the stack-limit check recycles it in EX: latency 2, throughput 1/2. | Preserve the SP update and stack check. A shifted operand can change the row's timing. |
+| Note 2 tagged logical shifted-register forms | Non-`LSL`, or `LSL` by more than 4: latency 2, throughput 1. Otherwise 1 and 1. | The M52 threshold is a shift amount greater than 4; use this M52 note rather than another core's condition. |
+| `ORN`/`ORR` register row | The table prints latency `1(2)` and throughput `1(1/2)` with Note 2. The note describes the shift case as throughput 1, but does not clearly assign the table's parenthesized throughput alternative. | Preserve the printed ambiguity; do not invent a condition for the `1/2` value. `ORR` also appears in another table row. |
+| Narrow `ADD SP` forms; wide immediate SP forms | Selected narrow SP additions report latency 2, throughput 1/2 because of the stack-limit-check bubble. Wide immediate `ADD SP`, `ADDW SP`, `SUB SP`, and `SUBW SP` rows report 1 and 1. | Do not generalize the narrow SP penalty to all SP updates. |
+| `MOV` forms | Wide immediate/register/`MOVT` forms report 1 and 1. Narrow `MOV` immediate reports 1 and 2. The separate narrow `MOV (T1)` row prints latency `1(4)`, throughput `2(1/4)`, dual-issue `11(00)`; `MOV PC, Rm` is single issue. | Check the exact row and PC operand before using a narrow form as an issue opportunity. |
+| `MUL` and listed scalar multiply-accumulate groups | Latency 2, throughput 1. Narrow `MUL (T1)` is slot 0 only. | Keep dependent-use delay and slot eligibility in the schedule. The M52 guide does not state the M85 addend-forwarding timing; do not transfer it. |
+| `SDIV`/`UDIV` | Data-dependent latency 2–20 and throughput 1/19–1. The iterative divider blocks later divide operations until completion. For nonzero division, let `DIFF_SIGN = Count_leading_sign_bit(denominator) - Count_leading_sign_bit(numerator)`; for `UDIV`, the counts are leading zeros. If `DIFF_SIGN < 0`, latency is 3 and throughput 1/2. Otherwise latency is `4 + ceil(DIFF_SIGN / 2)` and throughput is `1 / (3 + ceil(DIFF_SIGN / 2))`. Divide by zero is listed as 2 and 1. | Treat divide-by-zero as a timing-table reference case, not an input recommendation or a guarantee about exception configuration. The divisor in this M52 formula is 2. |
+| `CLRM` | Clears one register per cycle; for `N = num_regs`, latency is `N + 1` and throughput is `1/N`. | Apply this only when the program already needs to clear those registers; it is not a reason to clear extra state. |
+| Security instructions in existing code | `PAC`, `PACBTI`, `PACG`, `AUT`, and `AUTG` report 2 and 1; `BXAUT` reports 4 and 1/4; `BTI` reports 1 and 1. | Account for required authentication and landing-pad work while preserving its security semantics. Do not remove these instructions for timing. |
+
+The M52 guide also reports the listed MVE scalar shift instructions (`ASRL`, `LSLL`, `LSRL`, `SQRSHR`, `SQRSHRL`, `SQSHL`, `SQSHLL`, `SRSHR`, `SRSHRL`, `UQRSHL`, `UQRSHLL`, `UQSHL`, `UQSHLL`, `URSHR`, and `URSHRL`) on the DPU at latency 5 and throughput 1/4. It gives no CPACR-dependent alternative or per-operand shift distinction for these rows. [§3.11, p. 40]
+
+These timing rows are a basis for checking dependencies and candidate schedules, not measured speedups. Preserve flags, PC/SP effects, arithmetic, exception, and security behavior; inspect the emitted code and measure the real workload before claiming a gain. [§§2.2–3.5, pp. 10–26; §3.8, p. 30; §3.11, p. 40]

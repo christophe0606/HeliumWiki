@@ -1,8 +1,9 @@
 ---
 id: techniques-helium-instruction-interleaving
-title: Interleave different Helium instruction types to overlap execution
+title: Interleave Helium instructions on Cortex-M52, Cortex-M55, and Cortex-M85
 type: techniques
 architectures:
+  - cortex-m52
   - cortex-m55
   - cortex-m85
 tags:
@@ -15,9 +16,9 @@ reproducibility: concept
 related:
   - techniques-helium-auto-vectorization
   - techniques-helium-low-overhead-loop-alignment
-  - techniques-cortex-m55-latency-aware-scheduling
-  - techniques-cortex-m55-floating-point-scheduling
-  - techniques-cortex-m55-memory-access-scheduling
+  - techniques-cortex-m-latency-aware-scheduling
+  - techniques-cortex-m-floating-point-scheduling
+  - techniques-cortex-m-memory-access-scheduling
   - techniques-cortex-m85-latency-aware-scheduling
   - techniques-cortex-m85-memory-access-scheduling
   - techniques-cortex-m85-floating-point-scheduling
@@ -26,6 +27,7 @@ sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://support.arm.com/documentation/102692/0101
   - https://support.arm.com/documentation/107950/0100
+  - https://support.arm.com/documentation/107730/0003
 aliases:
   - Helium instruction scheduling
   - MVE instruction interleaving
@@ -37,11 +39,12 @@ aliases:
   - Cortex-M85 MVE overlap
   - Cortex-M85 SIMD instruction groups
   - Cortex-M85 load store overlap parity
+  - Cortex-M52 one-beat MVE overlap
+  - Cortex-M52 shared VF pipeline
+  - Cortex-M52 MVE tick scheduling
 ---
 
-In hand-optimized Helium assembly for M55 or M85, a run of one instruction type may leave opportunities to overlap execution unused. Interleave different types of Helium instructions in the sequence so the processor can work on their execution concurrently.
-
-Preserve true data dependencies when changing the order, and inspect the resulting code for the target processor. The article gives this qualitative scheduling guideline only: it supplies no instruction-pair schedule, latency table, or measured speedup, so there is no universal ordering to apply mechanically.
+Use this page when scheduling MVE instructions on Cortex-M52 r0p3, Cortex-M55 r1p1, or Cortex-M85 r1p0. Each core has different tick models, execution pipes, and overlap limits; follow the matching core-specific section and preserve dependencies. The source-reported schedules are guidance, not measured application speedups.
 
 ## Cortex-M55 r1p1 two-tick scheduling model
 
@@ -145,3 +148,36 @@ LE/LETP has no issue cost and does not change LDST/SIMD overlap based on where i
 The source also notes a tradeoff between scatter/gather instructions and scalar transfers to or from vector registers based on address-register pressure and bank-friendly access arrangement. Scatter/gather base-register updates do not forward to following instructions. See [Cortex-M85 memory-access scheduling](techniques-cortex-m85-memory-access-scheduling.md) for conditional address-formation options and separate store-data adjustments. [section 4.10, page 49]
 
 These rules describe the Cortex-M85 r1p0 guide's issue resources, dependency constraints, and example sequences. They are implementation guidance for instruction placement, not algorithm changes or measured application speedups; inspect the generated instructions and measure the actual workload. [sections 2.2, 3.1, and 3.10-3.15, pages 11-13 and 31-42; section 4.10, pages 46-49]
+
+
+## Cortex-M52 r0p3, Issue 03: beatwise MVE overlap
+
+For Cortex-M52, use the pipeline labels and overlap rules for this core when arranging MVE work. The processor is a one-beat-per-tick machine: a 128-bit vector instruction executes as four 32-bit ticks. Up to two beatwise MVE instructions can overlap; an older instruction's ticks 2/3 can execute with a newer instruction's ticks 0/1 only when the instructions use different execution pipes. Section 3.1 also describes a one-cycle stall when issuing an MVE instruction after another, so do not infer a complete cycle schedule from the summary wording alone. The EPU runs in lock-step with the DPU, and E0 decides overlap from resource and data availability; any E0 hazard stall prevents it. [Arm China Cortex®-M52 Processor Software Optimization Guide, document 107730_0003_03_en, §§2.2 and 3.1, pp. 10–15; §4.1, p. 45]
+
+The M52 pipeline labels are SY (system registers), LS (load/store), and VF (shared vector and floating-point). Integer vector arithmetic and vector floating-point arithmetic both use VF, so alternating integer and floating-point mnemonics alone does not create different-pipe overlap. E1/E2 results forward to E0 for following instructions of the same class, but not across classes such as floating point to fixed point or vector to scalar floating point. A distinct pipe does not remove a data dependency. [§2.2, pp. 13–14; §§3.10–3.15, pp. 33–44]
+
+| M52 instruction family | Representative source-reported timing and pipeline |
+| --- | --- |
+| Most MVE integer vector arithmetic, bitwise, compare, duplicate, move, multiply, negate, select, shift, and arithmetic-to-scalar rows | Latency 2, throughput 1/4, VF. The table notes beatwise execution for the multicycle MVE groups. |
+| MVE integer lane transfers, including VMOV between a GPR and vector lane(s) | Latency 2, throughput 1, VF. |
+| Listed MVE scalar shift instructions | Latency 5, throughput 1/4, DPU. |
+| Most MVE floating-point arithmetic, compare, convert, multiply, and negate rows | Latency 2, throughput 1/4, VF. |
+| MVE system-register transfers (VLDR/VSTR system register, VMRS, VMSR) | Latency 1, throughput 1, SY. |
+| MVE VCTP, VPNOT, and VPST | Latency 2, throughput 1/4, SY. |
+| Continuous and deinterleaving vector loads; continuous and interleaving vector stores | Latency 2, throughput 1/4, LS. |
+| Gather loads and scatter stores | Use LS and VF. T5/T6 writeback forms execute in VF; their latency/throughput differs from the corresponding non-writeback form (see the memory page below). |
+
+Integer reductions have element-size-dependent timing, and absolute reductions use separate rows:
+
+| M52 reduction group | Element size | Latency | Throughput |
+| --- | --- | --- | --- |
+| VMAXV / VMINV | 32 / 16 / 8 bits | 5 / 9 / 13 | 1/4 / 1/8 / 1/12 |
+| VMAXAV / VMINAV | 32 / 16 / 8 bits | 9 / 13 / 17 | 1/8 / 1/12 / 1/16 |
+| VABAV | As listed | 9 | 1/8 |
+| MVE floating-point VMAXNMV / VMINNMV and VMAXNMAV / VMINNMAV | Single precision / half precision | 5 / 9 | 1/4 / 1/8 |
+
+The arithmetic-to-scalar integer groups VADDLV, VADDV, VMLADAV, VMLALDAV, VMLSDAV, VMLSLDAV, VRMLALDAVH, and VRMLSLDAVH report latency 2 and throughput 1/4 on VF. The M52 source does not state the M55 SRF E2/E3 write-port hazard for these rows. Do not import that M55 hazard into M52 guidance. [§3.10, pp. 33–39; §§3.11–3.13, pp. 39–42]
+
+Section 4.1 lists scalar instruction classes that may overlap tick 3 of a preceding vector instruction: immediate B, BL, and CB[N]Z; low-overhead-loop instructions; Branch Future instructions (which act as NOPs); and integer arithmetic except DIV, all CSEL forms, MVE scalar shifts, and PC-modifying instructions. The guide's limits are important: an instruction that checks the stack limit does not overlap; a scalar cannot overlap a vector instruction marked with implicit LE (the last instruction in a low-overhead loop); no scalar load or store overlaps a vector instruction; and a scalar/vector dependency makes overlap unlikely. [§4.1, p. 45]
+
+A useful schedule can pair an independent LS access with VF work when the relevant ticks use different pipes and E0 sees no hazard. This is a conditional scheduling opportunity, not a timing guarantee. Do not transfer M55 base-writeback, scalar-memory, or SRF hazards, or M85 pipeline-group rules, to M52. For the element-size and writeback memory rows, see [Cortex-M52 and Cortex-M55 memory-access scheduling](techniques-cortex-m-memory-access-scheduling.md). The guide reports no measured workload speedups.

@@ -4,6 +4,7 @@
 
 architectures:
   - armv8.1-m
+  - cortex-m52
   - cortex-m55
   - cortex-m85
 

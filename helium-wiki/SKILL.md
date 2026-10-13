@@ -5,7 +5,7 @@ description: Find Cortex-M software optimization guidance in a local wiki. Use f
 
 # Helium Wiki
 
-Find software optimization guidance for Cortex-M systems, including Cortex-M55 and Cortex-M85. Use the concept map, summary tables, and search scripts to locate relevant pages, then read those pages before answering.
+Find software optimization guidance for Cortex-M systems, including Cortex-M52, Cortex-M55, and Cortex-M85. Use the concept map, summary tables, and search scripts to locate relevant pages, then read those pages before answering.
 
 ## Start with the concept map
 
@@ -49,10 +49,10 @@ Filters: `--type`, `--tag`, `--repo`, `--language`, `--architecture`, `--symptom
 
 ### Read a page with get_page.py
 
-[scripts/get_page.py](scripts/get_page.py) retrieves a page by its YAML `id` or its skill-relative Markdown path. IDs can differ from filenames. By default it prints the frontmatter and body.
+[scripts/get_page.py](scripts/get_page.py) retrieves a page by its YAML `id` or its skill-relative Markdown path. Wiki page IDs match their Markdown filenames without the `.md` extension. By default it prints the frontmatter and body.
 
 ```bash
-uv run scripts/get_page.py techniques-armv8m-cortex-m55-m85-cache-management
+uv run scripts/get_page.py techniques-armv8m-cache-management
 uv run scripts/get_page.py wiki/languages/languages-c-float16-half-precision.md --body-only
 ```
 
