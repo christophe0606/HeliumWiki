@@ -4,7 +4,14 @@ model = "gpt-6-luna"
 model_reasoning_effort = "high"
 developer_instructions = """
 Analyze the documents thoroughly to identify optimization guidelines 
-and relevant information. Extract the optimization guidelines
+and relevant information. We are interested in
+implementation guidelines and not in algorithmic guidelines.
+Implementation guidelines may cover : register usage, vectorization, memory access patterns, and instruction-level parallelism,
+cache usage, memory hierarchy, and data locality, context switching overhead, lock contention, power management.
+Implementation guidelines may also include compiler optimizations, code refactoring, loop unrolling, and other performance-enhancing techniques.
+
+
+Extract the optimization guidelines
 in the .flow folder as structured data files
 and return the paths to the extracted structured data files.
 

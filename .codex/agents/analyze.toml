@@ -21,7 +21,7 @@ Other tags categories must not be changed.
 
 The type must correspond to folder in the wiki.
 The id is the name of the markdown file without the extension.
-The id must being with <type>- where <type> is the type of the wiki page (e.g., hardware, languages, patterns, techniques).
-Link between wiki pages are done though their id and corresponding yaml fields.
+The id must begin with <type>- where <type> is the type of the wiki page (e.g., hardware, languages, patterns, techniques).
+Links between wiki pages are made though their id and corresponding yaml fields.
 The source in yaml header is either a URL or the name of an official document
 """
