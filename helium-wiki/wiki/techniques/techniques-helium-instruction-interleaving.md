@@ -22,12 +22,18 @@ related:
   - techniques-cortex-m85-latency-aware-scheduling
   - techniques-cortex-m85-memory-access-scheduling
   - techniques-cortex-m85-floating-point-scheduling
+  - techniques-helium-fir-tap-blocking
+  - techniques-helium-df1-biquad-vectorization
   - hardware-dtcm-scatter-gather-banks
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://support.arm.com/documentation/102692/0101
   - https://support.arm.com/documentation/107950/0100
   - https://support.arm.com/documentation/107730/0003
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_f32.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q15.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f32.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c
 aliases:
   - Helium instruction scheduling
   - MVE instruction interleaving
@@ -42,9 +48,10 @@ aliases:
   - Cortex-M52 one-beat MVE overlap
   - Cortex-M52 shared VF pipeline
   - Cortex-M52 MVE tick scheduling
+evidence_basis: "Processor pipeline and instruction characteristics are source-reported in the linked public guides. CMSIS-DSP v1.18.0 links corroborate FIR and biquad implementation examples."
 ---
 
-Use this page when scheduling MVE instructions on Cortex-M52 r0p3, Cortex-M55 r1p1, or Cortex-M85 r1p0. Each core has different tick models, execution pipes, and overlap limits; follow the matching core-specific section and preserve dependencies. The source-reported schedules are guidance, not measured application speedups.
+Use this page when scheduling MVE instructions on Cortex-M52 r0p3, Cortex-M55 r1p1, or Cortex-M85 r1p0. Each core has different tick models, execution pipes, and overlap limits; follow the matching core-specific section and preserve dependencies. The source-reported schedules describe processor behavior; they do not predict application performance by themselves.
 
 ## Cortex-M55 r1p1 two-tick scheduling model
 
@@ -103,7 +110,7 @@ For the listed integer and floating-point vector min/max reductions, the table g
 
 The MVE scalar-shift rows report latency `2(5)` and throughput `1(1/4)`. Their note says that with `CPACR.CP10 != 0b00`, execution uses the EPU with shorter latency and higher throughput; when `CPACR.CP10 == 0b00`, execution uses the DPU and the longer latency/lower throughput appear in parentheses. MVE scalar shifts are also excluded from the scalar/vector overlap list. [§3.11, Table 3-17, p. 41; §4.1, p. 46]
 
-As a scheduling implication, classify the exact assembled instructions by pipe, write stage, forwarding class, and variant before interleaving them. Then preserve dependencies and the explicit mixed-pipe ordering notes, and verify overlap in the target workload. The guide reports architectural timing and hazard conditions, not measured speedups from a particular reordered sequence.
+As a scheduling implication, classify the exact assembled instructions by pipe, write stage, forwarding class, and variant before interleaving them. Then preserve dependencies and the explicit mixed-pipe ordering notes, and inspect the generated code under the intended target configuration.
 
 ## Cortex-M85 r1p0 overlap and sequence rules
 
@@ -147,7 +154,7 @@ LE/LETP has no issue cost and does not change LDST/SIMD overlap based on where i
 
 The source also notes a tradeoff between scatter/gather instructions and scalar transfers to or from vector registers based on address-register pressure and bank-friendly access arrangement. Scatter/gather base-register updates do not forward to following instructions. See [Cortex-M85 memory-access scheduling](techniques-cortex-m85-memory-access-scheduling.md) for conditional address-formation options and separate store-data adjustments. [section 4.10, page 49]
 
-These rules describe the Cortex-M85 r1p0 guide's issue resources, dependency constraints, and example sequences. They are implementation guidance for instruction placement, not algorithm changes or measured application speedups; inspect the generated instructions and measure the actual workload. [sections 2.2, 3.1, and 3.10-3.15, pages 11-13 and 31-42; section 4.10, pages 46-49]
+These rules describe the Cortex-M85 r1p0 guide's issue resources, dependency constraints, and example sequences. They are implementation guidance for instruction placement, not algorithm changes; inspect generated instructions and validate behavior in the intended application. [sections 2.2, 3.1, and 3.10-3.15, pages 11-13 and 31-42; section 4.10, pages 46-49]
 
 
 ## Cortex-M52 r0p3, Issue 03: beatwise MVE overlap
@@ -180,4 +187,12 @@ The arithmetic-to-scalar integer groups VADDLV, VADDV, VMLADAV, VMLALDAV, VMLSDA
 
 Section 4.1 lists scalar instruction classes that may overlap tick 3 of a preceding vector instruction: immediate B, BL, and CB[N]Z; low-overhead-loop instructions; Branch Future instructions (which act as NOPs); and integer arithmetic except DIV, all CSEL forms, MVE scalar shifts, and PC-modifying instructions. The guide's limits are important: an instruction that checks the stack limit does not overlap; a scalar cannot overlap a vector instruction marked with implicit LE (the last instruction in a low-overhead loop); no scalar load or store overlaps a vector instruction; and a scalar/vector dependency makes overlap unlikely. [§4.1, p. 45]
 
-A useful schedule can pair an independent LS access with VF work when the relevant ticks use different pipes and E0 sees no hazard. This is a conditional scheduling opportunity, not a timing guarantee. Do not transfer M55 base-writeback, scalar-memory, or SRF hazards, or M85 pipeline-group rules, to M52. For the element-size and writeback memory rows, see [Cortex-M52 and Cortex-M55 memory-access scheduling](techniques-cortex-m-memory-access-scheduling.md). The guide reports no measured workload speedups.
+A useful schedule can pair an independent LS access with VF work when the relevant ticks use different pipes and E0 sees no hazard. This is a conditional scheduling opportunity, not a timing guarantee. Do not transfer M55 base-writeback, scalar-memory, or SRF hazards, or M85 pipeline-group rules, to M52. For the element-size and writeback memory rows, see [Cortex-M52 and Cortex-M55 memory-access scheduling](techniques-cortex-m-memory-access-scheduling.md).
+
+## Cortex-M55 DSP-kernel implementation examples
+
+The linked Cortex-M55 processor guides describe execution rules; CMSIS-DSP v1.18.0 sources provide public FIR and biquad implementations that illustrate application kernels.
+
+For F32 FIR scheduling, retain reusable scalar tap coefficients where useful and interleave sample loads with vector multiply/FMA work. The Q15 implementation instead loads tap vectors and uses dot-product/reduction operations. These are distinct lane mappings; preserve their accumulation and output-conversion semantics. Public implementations are available in [arm_fir_f32.c](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_f32.c) and [arm_fir_q15.c](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q15.c); see [Helium FIR tap blocking](techniques-helium-fir-tap-blocking.md) for the register-budget and scratch-pass discussion.
+
+For DF1 biquads, the public [F32 kernel](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f32.c) and [F16 kernel](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c) load expanded coefficient vectors while accumulating the recurrence across four F32 or eight F16 outputs. The coefficient transformation and numerical considerations are documented on [Helium DF1 biquad vectorization](techniques-helium-df1-biquad-vectorization.md).

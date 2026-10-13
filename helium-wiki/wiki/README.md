@@ -22,15 +22,23 @@ Check each page's processor, revision, implemented features, and toolchain condi
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `patterns-cmsis-dsp-helium-migration` | [wiki/patterns/patterns-cmsis-dsp-helium-migration.md](patterns/patterns-cmsis-dsp-helium-migration.md) | Review Cortex-M55/M85 CMSIS-DSP Helium initializers, coefficient storage, padding, and processing-buffer alignment. |
-| `languages-c-float16-half-precision` | [wiki/languages/languages-c-float16-half-precision.md](languages/languages-c-float16-half-precision.md) | Use `_Float16` arithmetic and Cortex-M55/M85 Helium half-precision data when numerical requirements and compiler support permit. |
+| `patterns-cmsis-dsp-helium-migration` | [wiki/patterns/patterns-cmsis-dsp-helium-migration.md](patterns/patterns-cmsis-dsp-helium-migration.md) | Review Cortex-M55/M85 CMSIS-DSP initializers, FIR/DF1 coefficient and state layouts, release-specific padding, and buffer alignment. |
+| `languages-c-float16-half-precision` | [wiki/languages/languages-c-float16-half-precision.md](languages/languages-c-float16-half-precision.md) | Use Cortex-M55/M85 `_Float16` with suitable numerical and compiler support, and review DSP lane layouts and coefficient handling. |
+
+## DSP kernel layout and vectorization
+
+| ID | Path | Quick description |
+| --- | --- | --- |
+| `techniques-helium-fir-tap-blocking` | [wiki/techniques/techniques-helium-fir-tap-blocking.md](techniques/techniques-helium-fir-tap-blocking.md) | Study Cortex-M55 FIR coefficient preloading, floating-point and fixed-point lane mappings, and long-filter scratch-pass tradeoffs. |
+| `techniques-helium-fft-butterflies` | [wiki/techniques/techniques-helium-fft-butterflies.md](techniques/techniques-helium-fft-butterflies.md) | Map Cortex-M55 CFFT/RFFT butterflies to Helium complex operations, final-stage scatter/gather, bit reversal, and recombination. |
+| `techniques-helium-df1-biquad-vectorization` | [wiki/techniques/techniques-helium-df1-biquad-vectorization.md](techniques/techniques-helium-df1-biquad-vectorization.md) | Study Cortex-M55 DF1 recurrence expansion, floating-point coefficient layouts, Q31 feedback scheduling, and numerical checks. |
 
 ## Memory placement and cache behavior
 
 | ID | Path | Quick description |
 | --- | --- | --- |
 | `hardware-itcm-instruction-data-contention` | [wiki/hardware/hardware-itcm-instruction-data-contention.md](hardware/hardware-itcm-instruction-data-contention.md) | Avoid instruction/data contention in Cortex-M55/M85 ITCM and evaluate M85 DTCM placement for frequently accessed constants. |
-| `hardware-dtcm-scatter-gather-banks` | [wiki/hardware/hardware-dtcm-scatter-gather-banks.md](hardware/hardware-dtcm-scatter-gather-banks.md) | Arrange Cortex-M55/M85 DTCM accesses across banks, distinguish M55 vector-load penalties, and account for M85 L1 banks and DMA conflicts. |
+| `hardware-dtcm-scatter-gather-banks` | [wiki/hardware/hardware-dtcm-scatter-gather-banks.md](hardware/hardware-dtcm-scatter-gather-banks.md) | Arrange M55/M85 DTCM accesses across banks, distinguish core timing and M85 L1/DMA conflicts, and check FFT gather/scatter access patterns. |
 | `techniques-armv8m-cache-management` | [wiki/techniques/techniques-armv8m-cache-management.md](techniques/techniques-armv8m-cache-management.md) | Apply Cortex-M55/M85 Armv8-M cache enable and deactivation ordering and interpret revision-sensitive M55 cache events. |
 | `techniques-cortex-m-cache-prefetch` | [wiki/techniques/techniques-cortex-m-cache-prefetch.md](techniques/techniques-cortex-m-cache-prefetch.md) | Evaluate Cortex-M52 prefetch inclusion and PFCR control and Cortex-M85 stream coverage, explicit-prefetch costs, and transient hints. |
 | `techniques-cortex-m-memory-access-scheduling` | [wiki/techniques/techniques-cortex-m-memory-access-scheduling.md](techniques/techniques-cortex-m-memory-access-scheduling.md) | Schedule Cortex-M52/M55 scalar, FP, and MVE transfers by each core's encodings, alignment, resources, memory waits, and overlap rules. |
@@ -45,7 +53,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | `techniques-cortex-m-thumb-dual-issue` | [wiki/techniques/techniques-cortex-m-thumb-dual-issue.md](techniques/techniques-cortex-m-thumb-dual-issue.md) | Select eligible Cortex-M52/M55 16-bit Thumb encodings using each core's issue slots, operands, dependencies, and pairing restrictions. |
 | `techniques-cortex-m-floating-point-scheduling` | [wiki/techniques/techniques-cortex-m-floating-point-scheduling.md](techniques/techniques-cortex-m-floating-point-scheduling.md) | Schedule Cortex-M52/M55 scalar and MVE FP using each core's precision, dependencies, forwarding, reductions, and fused-operation semantics. |
 | `techniques-cortex-m85-floating-point-scheduling` | [wiki/techniques/techniques-cortex-m85-floating-point-scheduling.md](techniques/techniques-cortex-m85-floating-point-scheduling.md) | Schedule Cortex-M85 scalar and MVE FP by precision, operand dependencies, shared EPU resources, and fused-operation semantics. |
-| `techniques-helium-instruction-interleaving` | [wiki/techniques/techniques-helium-instruction-interleaving.md](techniques/techniques-helium-instruction-interleaving.md) | Interleave Helium work using Cortex-M52 beatwise overlap, Cortex-M55 pipeline hazards, and Cortex-M85 issue groups and sequence rules. |
+| `techniques-helium-instruction-interleaving` | [wiki/techniques/techniques-helium-instruction-interleaving.md](techniques/techniques-helium-instruction-interleaving.md) | Interleave Helium work using M52 beatwise overlap, M55 pipeline hazards and FIR/DF1 load/MAC examples, and M85 issue-group rules. |
 
 ## Branch prediction and loop control
 

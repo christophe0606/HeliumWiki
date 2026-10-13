@@ -19,12 +19,16 @@ related:
   - techniques-cortex-m85-memory-access-scheduling
   - patterns-cmsis-dsp-helium-migration
   - techniques-helium-instruction-interleaving
+  - techniques-helium-fft-butterflies
   - techniques-armv8m-cache-management
   - techniques-cortex-m-memory-access-scheduling
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://support.arm.com/documentation/102692/0101
   - https://support.arm.com/documentation/107950/0100
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f32.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f16.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/PrivateInclude/arm_vec_fft.h
 aliases:
   - DTCM banks
   - scatter gather memory placement
@@ -32,6 +36,7 @@ aliases:
   - data TCM throughput
   - Cortex-M55 vector-load bank conflict
   - DTCM address bits 3:2
+evidence_basis: "Bank-selection and processor timing details are source-reported in the linked public processor guides. CMSIS-DSP v1.18.0 links corroborate CFFT gather/scatter implementation structure."
 ---
 
 Scatter/gather DSP code can benefit from DTCM when it issues separate data accesses that can reach different banks. On M55 and M85, the article describes four interleaved DTCM banks selected by address bits 2 and 3. Two separate accesses of 32 bits or less can be carried out simultaneously when they target different banks.
@@ -42,11 +47,11 @@ Arrange the accessed addresses so the concurrent accesses differ in bits [3:2]; 
 
 The Cortex-M85 guide says DTCM and the L1 data cache each have four 32-bit banks, selected by address bits `[3:2]`. Two load instructions issued in the same cycle to the same bank conflict: the second access stalls for one cycle while the first proceeds. The guide specifically recommends avoiding adjacent scalar loads and MVE gather loads that access the same bank where the code and access pattern allow it. [Arm Cortex-M85 Processor Software Optimization Guide, r1p0, Issue 01 (26 April 2023), §4.3, p. 44]
 
-For an address-bit illustration, addresses separated by 16 bytes have the same `[3:2]` bits and select the same bank; consecutive aligned 32-bit words cycle through the four `[3:2]` values. This illustrates bank selection only. Different-bank accesses are not a guarantee that all other pipeline, address, and memory conditions permit overlap.
+For an address-bit illustration, addresses separated by 16 bytes have the same `[3:2]` bits and select the same bank; consecutive aligned 32-bit words cycle through the four `[3:2]` values. This illustrates bank selection only. Different-bank accesses do not guarantee that all other pipeline, address, and memory conditions permit overlap.
 
 The guide distinguishes stores from this same-cycle load rule: buffering of store data decouples pipeline store-instruction flow from bank conflicts. It also says DTCM bank conflicts can occur between CPU and DMA accesses. The four banks can serve CPU and DMA, each consuming at most two banks on a sustained basis, with some conflict-related loss expected; DMA access is not free. [§4.3, p. 44]
 
-When comparing MVE scatter/gather with scalar accesses into vector registers, consider the available scalar and vector registers for holding addresses and how easily the access pattern can avoid bank conflicts. This is an implementation trade-off, not a universal gather speedup. [§4.10, p. 49]
+When comparing MVE scatter/gather with scalar accesses into vector registers, consider the available scalar and vector registers for holding addresses and how easily the access pattern can avoid bank conflicts. This is an implementation trade-off whose suitability depends on register pressure and the access pattern. [§4.10, p. 49]
 
 ## Cortex-M55 r1p1 vector-load conflict timing
 
@@ -55,3 +60,7 @@ The Cortex-M55 r1p1, Issue 03 guide states that its TCM has four banks, each 32 
 As an original illustration of the stated bit rule, `0x20010000` and `0x20010010` both have bits [3:2] equal to `00`, so requests for both in one vector load map to the same bank. An illustrative address such as `0x20010004` has bits [3:2] equal to `01` and selects a different bank. These are address-bit examples, not measured layouts or a guarantee that every different-bank access can proceed simultaneously under all other resource and data conditions. [§4.1.3, p. 47]
 
 When the application's vector-load access pattern permits it, consider a data layout or stride that places concurrently requested words in different banks while preserving the program's access semantics. Verify the actual addresses and workload: the guide establishes the same-bank conflict condition and penalty, not a general throughput gain from changing layout. See [techniques-cortex-m-memory-access-scheduling](../techniques/techniques-cortex-m-memory-access-scheduling.md) for related memory-access timing guidance.
+
+## CMSIS-DSP CFFT gather/scatter implementation
+
+The CMSIS-DSP v1.18.0 [F32 CFFT](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f32.c) and [F16 CFFT](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f16.c) sources show the released final-stage kernels loading irregular lane positions with gathers, forming sums and differences without loading twiddles, and scattering the outputs. The private [FFT helper header](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/PrivateInclude/arm_vec_fft.h) also contains MVE gather/scatter helpers. Check the actual gather offsets and buffer addresses against the target's bank-selection rule before changing data placement. See [Helium FFT butterflies](../techniques/techniques-helium-fft-butterflies.md) for the released implementation references.

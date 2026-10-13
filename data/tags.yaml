@@ -25,6 +25,9 @@ techniques:
   - data-placement
   - cache-management
   - instruction-scheduling
+  - fft-butterfly-vectorization
+  - fir-tap-blocking
+  - biquad-recurrence-vectorization
   - loop-alignment
   - branch-prediction
   - power-management

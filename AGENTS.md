@@ -11,3 +11,11 @@ Ingest the document requested by the user to extend the helium wiki:
 * Continue corrections until until there is no more any validation error
 * Once all new pages have been corrected, launch the concept agent to update the wiki concept map
 * Then regenerate the queries and the aliases using scripts/gen_query.py and scripts/gen_aliases.py
+
+# Rules to respect
+* For helium code examples, use https://github.com/ARM-software/CMSIS-DSP and don't use the older CMSIS_5 that may still be referenced in old documentation.
+* Don't leave, in the generated wiki pages, references to local documents that won't be available to the user of the skill.  Only references acceptable are URL and names of official public documents.
+
+* The markdown MUST NOT contain any customer or partner proprietary information.
+
+* The markdown MUST NOT contains any benchmark data (like cycles).

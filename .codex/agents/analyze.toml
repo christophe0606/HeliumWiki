@@ -37,11 +37,20 @@ The markdown must start, after the yaml header, with a short paragraph that desc
 The markdown MUST NOT contain any customer or partner proprietary information.
 
 # Page validation and correction
-The title of the page must be consistent with its content.
-For instance, if the page is about a specific hardware feature, the title should clearly reflect that feature.
-For instance, if the page has sections for different cortex-m core, then the title cannot reference only one core.
+The title of the page must be consistent with its content:
+- For instance, if the page is about a specific hardware feature, the title should clearly reflect that feature.
+- For instance, if the page has sections for different cortex-m core, then the title cannot reference only one core.
+
 If the title must be changed, the id of the page must also be updated to reflect the new title and all the links pointing to it.
+
 The markdown must start, after the yaml header, with a short paragraph that describes when the optimization guideline should be applied and what problem it solves.
+
+Don't leave in the generated wiki page reference to local documents that won't be available to the user of the skill.  
+Only references acceptable are URL and names of official public documents.
+
 The markdown MUST NOT contain any customer or partner proprietary information.
+
+The markdown MUST NOT contains any benchmark data (like cycles).
+
 Analyze the generated markdown to ensure it follows those guidelines and correct it if necessary.
 """

@@ -111,6 +111,20 @@ techniques-helium-auto-vectorization:
 - Helium auto-vectorization
 - MVE loop vectorization
 - restrict and vectorization
+techniques-helium-df1-biquad-vectorization:
+- DF1 recurrence SIMD expansion
+- Helium DF1 biquad vectorization
+- MVE recursive biquad coefficient layout
+techniques-helium-fft-butterflies:
+- CFFT radix 2 radix 4 MVE
+- Helium FFT butterflies
+- MVE complex butterfly vectorization
+- RFFT recombination Helium
+techniques-helium-fir-tap-blocking:
+- FIR load MAC overlap
+- FIR scratch partial outputs
+- Helium FIR tap blocking
+- MVE FIR coefficient preload
 techniques-helium-instruction-interleaving:
 - assembly scheduling
 - Cortex-M52 MVE tick scheduling

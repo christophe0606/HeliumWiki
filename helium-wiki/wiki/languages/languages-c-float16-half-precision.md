@@ -20,17 +20,23 @@ related:
   - techniques-helium-auto-vectorization
   - patterns-cmsis-dsp-helium-migration
   - techniques-cortex-m55-epu-retention
+  - techniques-helium-fft-butterflies
+  - techniques-helium-df1-biquad-vectorization
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f16.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_init_f16.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c
 aliases:
   - half precision floating point
   - IEEE binary16
   - _Float16 arithmetic
   - fp16 Helium
   - C half precision
+evidence_basis: "Language and processor capability details are source-reported by the linked public article. CMSIS-DSP v1.18.0 code links corroborate half-precision implementation examples."
 ---
 
-Use IEEE binary16 (`_Float16`) for floating-point data or arithmetic on Armv8.1-M when its reduced precision and dynamic range fit the application. It halves storage per value versus single precision and allows twice as many Helium lane operations per vector, but that lane count does not guarantee a twofold application speedup; conversion, memory behavior, vectorization, and the workload still matter.
+Use IEEE binary16 (`_Float16`) for floating-point data or arithmetic on Armv8.1-M when its reduced precision and dynamic range fit the application. It halves storage per value versus single precision and allows twice as many Helium lane operations per vector, but lane count alone does not predict whole-application performance; conversion, memory behavior, vectorization, and the workload still matter.
 
 The article describes scalar half-precision arithmetic on M55/M85 when an FPU is implemented, and Helium half-precision vector operations when the floating-point vector feature is present. `_Float16` is an arithmetic type. ACLE `__fp16` is intended for storage and conversion, with arithmetic promoted to a wider type, so use `_Float16` when half-precision arithmetic is intended.
 
@@ -44,3 +50,9 @@ printf("%f\n", (double)z);
 ```
 
 The `printf` conversion promotes the value to `double` for `%f`. Do not confuse IEEE binary16 with bfloat16 (`__bf16`), which is a different 16-bit format; the article states that Armv8.1-M does not support bfloat16.
+
+## Half-precision DSP implementation examples
+
+The linked [CMSIS-DSP F16 CFFT](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f16.c) and [F16 DF1 implementation](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c) show release-specific lane layouts and coefficient handling. See [Helium FFT butterflies](../techniques/techniques-helium-fft-butterflies.md) and [Helium DF1 biquad vectorization](../techniques/techniques-helium-df1-biquad-vectorization.md) for those implementation patterns and numerical considerations.
+
+Choose half precision using the application's error tolerance and data range. Q15's 16-bit integer lanes do not establish numerical equivalence to `_Float16`, and lane count alone does not predict whole-kernel throughput.
