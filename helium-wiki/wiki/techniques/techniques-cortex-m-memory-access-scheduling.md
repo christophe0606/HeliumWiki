@@ -20,9 +20,11 @@ related:
   - hardware-itcm-instruction-data-contention
   - techniques-helium-instruction-interleaving
   - techniques-cortex-m-latency-aware-scheduling
+  - patterns-helium-dtcm-dma-pipeline
 sources:
   - https://support.arm.com/documentation/102692/0101
   - https://support.arm.com/documentation/107730/0003
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/processor_specific.md#L46-L57
 aliases:
   - Cortex-M55 gather forwarding penalty
   - Cortex-M55 multi-register transfer timing
@@ -31,6 +33,8 @@ aliases:
   - Cortex-M55 memory access latency
   - Cortex-M52 scalar and vector memory timing
   - Cortex-M52 gather scatter writeback
+  - Cortex-M52 DTCM store-to-read hazard
+  - Cortex-M55 DTCM producer-consumer bank placement
 evidence_basis: Instruction timings and hazards are source-reported for Cortex-M52 r0p3 and Cortex-M55 r1p1, Issue 03. Layout and scheduling advice is an implementation implication; the guides report no workload speedup.
 ---
 
@@ -105,3 +109,9 @@ For scalar floating-point transfers, the table reports VLDR T2/T3 at latency 2 a
 The table values do not imply that every data layout, access, or memory target reaches the listed maximum rate. The M52 guide gives no TCM bank count or same-bank penalty, no separate ITCM placement recommendation, no M55-style extra forwarding latency for a T1 gather, and no M55 dependent-store producer-latency claim. Keep those other-core details in their existing scoped sections. [§§3.6–3.7, pp. 26–29; §3.9, pp. 31–33; §§3.14–3.15, pp. 43–44]
 
 M52 also excludes all scalar loads and stores from overlap with vector instructions; a scalar/vector dependency is another overlap risk. Gather/scatter instructions may use both LS and VF, and T5/T6 writeback uses VF, so address updates are not free. Evaluate any alternative against address-register pressure, dependencies, full instruction cost, and preserved memory semantics. See [Helium instruction interleaving](techniques-helium-instruction-interleaving.md) for overlap conditions. These are implementation implications from source-reported behavior, not measured workload gains. [§4.1, p. 45]
+
+## DTCM store-to-read placement on Cortex-M52 and Cortex-M55
+
+The processor-specific source reports that a read immediately following a write to the same DTCM bank may be delayed on Cortex-M52 and Cortex-M55. This is separate from the M55/M85 opportunity to overlap independent small loads that map to different banks, and it does not establish that Cortex-M52 has the same two-access scatter/gather capability. When the store and following read access independent buffers, evaluate layout or offsets so they reach different banks, then verify the actual placement and complete kernel on the target. Preserve any same-address data dependency rather than trying to move its read to another bank. The source does not provide a bank width or a quantitative penalty for this condition; do not infer Cortex-M52 bank geometry from another core.
+
+The repository's processor-specific article also discusses ITCM contention and placement, but Cortex-M55/M85 ITCM code-versus-data guidance is already covered by [ITCM instruction and data contention](../hardware/hardware-itcm-instruction-data-contention.md). See [TCM workspaces and DMA pipelines](../patterns/patterns-helium-dtcm-dma-pipeline.md) for broader data-placement tradeoffs.

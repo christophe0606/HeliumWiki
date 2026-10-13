@@ -6,6 +6,7 @@ architectures:
   - armv8.1-m
   - cortex-m55
   - cortex-m85
+  - cortex-m52
 tags:
   - compiler-target-configuration
   - helium
@@ -22,17 +23,20 @@ related:
   - languages-c-float16-half-precision
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/basic_optimization_topics.md#L49-L79
 aliases:
   - Arm Compiler MVE target flags
   - armclang Cortex-M55 feature selection
   - armclang Cortex-M85 feature selection
   - __ARM_FEATURE_MVE
+  - Arm Compiler Cortex-M52 feature selection
+  - Cortex-M52 MVE target flags
 prerequisites:
   - Know which Helium and floating-point features the target actually implements.
   - Keep compiler, linker, and disassembler CPU feature descriptions consistent.
 ---
 
-Use these Arm Compiler 6 configuration examples when building for Cortex-M55 or Cortex-M85 with a particular combination of Helium (MVE) and floating-point features. Selecting features that the device does not implement can produce unsuitable code; architecture-only selection is also reported to miss processor-specific optimization.
+Use these Arm Compiler 6 configuration examples when building for Cortex-M52, Cortex-M55, or Cortex-M85 with a particular combination of Helium (MVE) and floating-point features. Selecting features that the device does not implement can produce unsuitable code; architecture-only selection is also reported to miss processor-specific optimization.
 
 The article recommends Arm Compiler 6.15 or later and says 6.14 supports Armv8.1-M but was less optimized. This is a historical recommendation from the article, not a current minimum-version statement. With `-mcpu`, the article says Cortex-M55/M85 default selections assume both Helium and FPU. Use the row matching the actual implementation:
 
@@ -69,3 +73,15 @@ ACLE C and C++ code can use `__ARM_FEATURE_MVE` to select an MVE-specific implem
 ```
 
 This is a compile-time feature test. It does not establish that runtime CP10/CP11 access has been enabled; startup configuration is covered by [techniques-armv81m-feature-initialization](techniques-armv81m-feature-initialization.md). The Arm Compiler flags and version advice here are source-specific and should not be treated as GCC/LLVM flags or a current toolchain recommendation.
+
+## Cortex-M52 target feature selection
+
+The repository's Arm Compiler 6.22-era table lists these Cortex-M52 configurations. Check the selected compiler release's documentation before adopting them.
+
+| Configuration | Compiler CPU option | Arm linker/disassembler CPU option |
+| --- | --- | --- |
+| No Helium, no FPU | `-mcpu=cortex-m52+nomve+nofp` | `--cpu=cortex-m52.no_mve.no_fp` |
+| No Helium, with FPU | `-mcpu=cortex-m52+nomve` | `--cpu=cortex-m52.no_mve` |
+| Full listed feature set | `-mcpu=cortex-m52` | `--cpu=cortex-m52` |
+
+Keep the compiler CPU selection aligned with the linker and disassembler CPU descriptions, and enable only features implemented by the fitted processor configuration. The source table groups armclang and GCC compiler spellings, while armlink and fromelf are Arm tools; do not transfer Arm linker flags to another toolchain or infer unlisted combinations. Runtime feature enablement remains a separate startup concern; see [Armv8.1-M feature initialization](techniques-armv81m-feature-initialization.md).

@@ -1,10 +1,11 @@
 ---
-id: techniques-cortex-m-cache-prefetch
-title: Evaluate Cortex-M52 and Cortex-M85 hardware prefetch and core-specific cache hints
+id: techniques-cortex-m-data-prefetch-and-cache-hints
+title: Evaluate Cortex-M hardware data prefetch and core-specific cache hints
 type: techniques
 architectures:
   - cortex-m52
   - cortex-m85
+  - cortex-m55
 tags:
   - cache
   - cache-management
@@ -18,9 +19,12 @@ related:
   - techniques-cortex-m85-memory-access-scheduling
   - techniques-cortex-m-memory-access-scheduling
   - hardware-dtcm-scatter-gather-banks
+  - patterns-helium-dtcm-dma-pipeline
 sources:
   - https://support.arm.com/documentation/107950/0100
   - https://support.arm.com/documentation/107730/0003
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/processor_specific.md#L40-L45
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Memory/Software_optimization_for_memory_constrained_devices.md#L105-L115
 aliases:
   - Cortex-M85 hardware data prefetch
   - M85 PLD PLDW hints
@@ -28,10 +32,12 @@ aliases:
   - Cortex-M85 streaming cache traffic
   - Cortex-M52 hardware data prefetch
   - Cortex-M52 PREFETCH and PFCR
+  - Cortex-M55 linear-stream data prefetch
+  - Cortex-M52 PREFETCH availability by revision
 evidence_basis: M52 r0p3 reports conditional hardware-prefetch inclusion and PFCR control; M85 r1p0 reports separate stream coverage, hint, and transient replacement behavior. Any cache-use advice is core-scoped and source-reported or explicitly identified as inference.
 ---
 
-Use this page when checking data-prefetch support or cache hints on Cortex-M52 r0p3 or Cortex-M85 r1p0. Prefetcher inclusion, stream coverage, hint semantics, and replacement behavior differ by core and system configuration, so follow the matching section. The guides provide no measured workload speedups.
+Use this page when checking data-prefetch support or cache hints on Cortex-M52, Cortex-M55, or Cortex-M85. The M52 r0p3 and M85 r1p0 sections follow their processor guides; the M55 section follows the repository's processor-specific article. Prefetcher inclusion, stream coverage, hint semantics, and replacement behavior differ by core and system configuration, so follow the matching section. The guides provide no measured workload speedups.
 
 ## Cortex-M85 r1p0, Issue 01
 
@@ -67,3 +73,11 @@ The M52 guide lists PLI at latency 1 and throughput 1 and says it acts as a NOP.
 The M52 guide does not document the M85 constant-stride detection range, two-cache-line observation window, 8 KB boundary, transient replacement hint, or a blanket prohibition on software prefetch. Keep those details in the M85 section only. The revision appendix says the r0p3 release added §4.2 and cites page 45, while the actual hardware-prefetcher section is on page 46; citations here use the section's actual page. [Appendix A, p. 47; §4.2, p. 46]
 
 For memory-transfer timing on M52, see [Cortex-M52 and Cortex-M55 memory-access scheduling](techniques-cortex-m-memory-access-scheduling.md).
+
+## Cortex-M55 linear streams and memory placement
+
+The processor-specific source describes Cortex-M55 recognition of constant strides of -2, -1, +1, or +2 in data-array units. It does not specify the element size for those units, so do not translate them into byte strides, neighboring prefetch targets, or a fixed cache-line distance. Consult the matching core TRM for prefetch control details and check the actual access pattern before relying on hardware prefetch.
+
+When a kernel uses several streams, evaluate whether the stream intended for cache prefetch remains in cacheable main memory while other streams use an appropriate TCM or noncacheable region. This is a workload experiment, not a general placement rule: TCM capacity, DMA reachability, cache behavior, and memory ownership still apply. Sequential cached access may work well without copying every input to DTCM, so compare the actual memory paths and working set before consuming scarce TCM.
+
+Keep the M52 revision-specific information already recorded above. The memory article says M52 revision 0 lacks data prefetch, while the M52 r0p3 guide records conditional `PREFETCH` inclusion. Check the device's exact revision and integration against its matching documentation; these sources do not justify a blanket claim about every M52 implementation. The M85 next-line and transient-hint behavior remains in the M85 sections and should not be inferred for M55. See [TCM workspaces and DMA pipelines](../patterns/patterns-helium-dtcm-dma-pipeline.md) when deciding which buffers should occupy TCM.

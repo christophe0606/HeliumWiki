@@ -6,6 +6,7 @@ architectures:
   - armv8.1-m
   - cortex-m55
   - cortex-m85
+  - cortex-m52
 tags:
   - half-precision
   - floating-point
@@ -22,17 +23,22 @@ related:
   - techniques-cortex-m55-epu-retention
   - techniques-helium-fft-butterflies
   - techniques-helium-df1-biquad-vectorization
+  - patterns-cmsis-nn-mve-runtime-selection
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f16.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_init_f16.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/basic_optimization_topics.md#L80-L107
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Memory/Software_optimization_for_memory_constrained_devices.md#L105-L121
 aliases:
   - half precision floating point
   - IEEE binary16
   - _Float16 arithmetic
   - fp16 Helium
   - C half precision
+  - F16 storage footprint
+  - half-precision working-set size
 evidence_basis: "Language and processor capability details are source-reported by the linked public article. CMSIS-DSP v1.18.0 code links corroborate half-precision implementation examples."
 ---
 
@@ -56,3 +62,7 @@ The `printf` conversion promotes the value to `double` for `%f`. Do not confuse 
 The linked [CMSIS-DSP F16 CFFT](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f16.c) and [F16 DF1 implementation](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c) show release-specific lane layouts and coefficient handling. See [Helium FFT butterflies](../techniques/techniques-helium-fft-butterflies.md) and [Helium DF1 biquad vectorization](../techniques/techniques-helium-df1-biquad-vectorization.md) for those implementation patterns and numerical considerations.
 
 Choose half precision using the application's error tolerance and data range. Q15's 16-bit integer lanes do not establish numerical equivalence to `_Float16`, and lane count alone does not predict whole-kernel throughput.
+
+## Data width and working-set choice
+
+When the processor configuration and compiler support the required F16 operations, `_Float16` can reduce array storage compared with F32 and can place more values in a vector register. Select the narrowest representation that meets the application's range, precision, rounding, and saturation requirements; a smaller element does not establish numerical equivalence or guarantee a faster complete kernel. MVE does not provide vector double-precision arithmetic, so double expressions remain scalar work even when surrounding operations use MVE.

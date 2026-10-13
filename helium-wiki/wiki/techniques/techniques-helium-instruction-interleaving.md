@@ -25,6 +25,7 @@ related:
   - techniques-helium-fir-tap-blocking
   - techniques-helium-df1-biquad-vectorization
   - hardware-dtcm-scatter-gather-banks
+  - techniques-profile-guided-helium-optimization
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://support.arm.com/documentation/102692/0101
@@ -34,6 +35,8 @@ sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q15.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L354-L459
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/optimizing_c_functions.md#L4-L23
 aliases:
   - Helium instruction scheduling
   - MVE instruction interleaving
@@ -48,6 +51,8 @@ aliases:
   - Cortex-M52 one-beat MVE overlap
   - Cortex-M52 shared VF pipeline
   - Cortex-M52 MVE tick scheduling
+  - MVE operand reuse across independent outputs
+  - LLVM-MCA Helium scheduling diagnosis
 evidence_basis: "Processor pipeline and instruction characteristics are source-reported in the linked public guides. CMSIS-DSP v1.18.0 links corroborate FIR and biquad implementation examples."
 ---
 
@@ -196,3 +201,9 @@ The linked Cortex-M55 processor guides describe execution rules; CMSIS-DSP v1.18
 For F32 FIR scheduling, retain reusable scalar tap coefficients where useful and interleave sample loads with vector multiply/FMA work. The Q15 implementation instead loads tap vectors and uses dot-product/reduction operations. These are distinct lane mappings; preserve their accumulation and output-conversion semantics. Public implementations are available in [arm_fir_f32.c](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_f32.c) and [arm_fir_q15.c](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q15.c); see [Helium FIR tap blocking](techniques-helium-fir-tap-blocking.md) for the register-budget and scratch-pass discussion.
 
 For DF1 biquads, the public [F32 kernel](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f32.c) and [F16 kernel](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c) load expanded coefficient vectors while accumulating the recurrence across four F32 or eight F16 outputs. The coefficient transformation and numerical considerations are documented on [Helium DF1 biquad vectorization](techniques-helium-df1-biquad-vectorization.md).
+
+## Reuse operands and inspect scheduling hypotheses
+
+For a hot kernel with several independent outputs, look for values that can be loaded once and reused across more than one result. The source's CMSIS-NN matrix-multiply example reuses a right-hand-side vector across independent rows, combines useful auxiliary work with the main loop, and interleaves loads with reductions. A clear C loop can expose the same data reuse to the vectorizer; handwritten intrinsics or assembly are not the only way to express it.
+
+When low-level scheduling is justified, interleave independent load and arithmetic groups according to the selected core's documented execution resources. Avoid assuming that one generic sequence works across Cortex-M52, Cortex-M55, and Cortex-M85. LLVM-MCA can provide a static resource and dependency hypothesis for generated code, but it does not model all dynamic alignment, memory-system, or DTCM-bank effects. Confirm the hypothesis with target-appropriate profiling and preserve each core- and revision-specific condition already documented above.

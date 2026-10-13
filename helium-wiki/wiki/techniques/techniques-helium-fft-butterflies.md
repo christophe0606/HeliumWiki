@@ -19,17 +19,20 @@ related:
   - techniques-helium-instruction-interleaving
   - hardware-dtcm-scatter-gather-banks
   - languages-c-float16-half-precision
+  - techniques-profile-guided-helium-optimization
 sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f16.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_rfft_fast_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_bitreversal.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/PrivateInclude/arm_vec_fft.h
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L1372-L1480
 aliases:
   - Helium FFT butterflies
   - MVE complex butterfly vectorization
   - CFFT radix 2 radix 4 MVE
   - RFFT recombination Helium
+  - M55 FFT software pipelining workflow
 evidence_basis: "CMSIS-DSP v1.18.0 source links corroborate FFT butterfly layouts, complex operations, and permutation details."
 ---
 
@@ -63,3 +66,8 @@ An out-of-place bit-reversal design can gather values in permutation order into 
 
 The public [CMSIS-DSP v1.18.0 fast F32 RFFT](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_rfft_fast_f32.c) performs a CFFT and then extracts the real spectrum by traversing one complex half forward and the other backward, conjugating as needed, and combining the pair with real-FFT twiddle factors. This is the implementation basis for the lane-layout pattern; endpoint packing, scaling, and direction handling are part of the function's full implementation and must be preserved when adapting it.
 
+## Consider software pipelining only for a profiled hot loop
+
+For a profiled Cortex-M55 FFT inner loop, inspect adjacent operations that compete for the same execution resources or depend on each other's results. Software pipelining may overlap independent work from neighboring iterations, but requires a valid prologue and epilogue, correct loop bounds and tail handling, and enough registers to hold staged values without spills.
+
+Use static scheduling analysis to form a hypothesis, then inspect the generated instructions and verify the complete kernel on the intended processor. Do not treat the source's assembly alternatives or simulator analysis as a guaranteed improvement. When substituting a CMSIS-DSP FFT function, preserve the selected API's data representation, ordering, scaling, direction, and boundary behavior.

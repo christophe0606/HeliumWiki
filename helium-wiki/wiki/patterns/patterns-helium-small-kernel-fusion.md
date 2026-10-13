@@ -1,0 +1,44 @@
+---
+id: patterns-helium-small-kernel-fusion
+title: Fuse small producer and consumer DSP kernels
+type: patterns
+architectures:
+  - armv8.1-m
+  - cortex-m52
+  - cortex-m55
+  - cortex-m85
+tags:
+  - helium
+  - mve
+  - auto-vectorization
+  - instruction-scheduling
+confidence: source-reported
+reproducibility: concept
+related:
+  - patterns-cmsis-dsp-helium-migration
+  - techniques-helium-auto-vectorization
+  - techniques-helium-instruction-interleaving
+sources:
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L849-L867
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L1337-L1371
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/optimizing_c_functions.md#L81-L98
+aliases:
+  - Helium loop fusion
+  - eliminate short DSP temporary buffers
+  - inline short CMSIS-DSP call chains
+prerequisites:
+  - Profile the complete application to confirm that the call chain is worth changing.
+  - Define numerical, aliasing, and boundary-count behavior before combining operations.
+---
+
+Use this pattern for profiled short DSP pipelines where call, stack, loop setup, or intermediate-buffer traffic is significant relative to useful work. Keep the public CMSIS-DSP sequence as a reference and validate any fused replacement against the application's numerical and buffer contracts.
+
+## Find a suitable producer and consumer
+
+First inspect whether successive library calls store an intermediate that the next operation immediately reloads, or whether several operations reuse the same input values. Link-time optimization or inlining may expose opportunities without changing the algorithm. If that is not sufficient, a fused kernel can retain loaded values in registers and perform several operations before storing final outputs.
+
+The source case study gives complex conjugation followed by a complex dot product as an example of a short call chain with an immediately consumed temporary. Treat it only as a pattern: preserve real/imaginary ordering and conjugation sign, reduction precision and evaluation order, aliasing behavior, fixed-point scaling/saturation/rounding, and correct sample and tail counts. Do not copy the case-study loop mechanically.
+
+## Check the cost of fusion
+
+Fusion can remove intermediate stores, reloads, and repeated setup, but it can also raise register pressure, cause spills, increase code size, or change floating-point association. Compare the generated code and profile the complete application after the change. Keep the simpler library path when the fused implementation does not improve the actual workload or makes its contract harder to maintain. The source describes a CMSIS-DSP C++ fusion facility as experimental at the time of writing; check the selected public release before depending on that facility.

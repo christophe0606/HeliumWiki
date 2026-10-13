@@ -29,6 +29,7 @@ sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f16.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/PrivateInclude/arm_vec_fft.h
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/processor_specific.md#L46-L57
 aliases:
   - DTCM banks
   - scatter gather memory placement
@@ -36,6 +37,7 @@ aliases:
   - data TCM throughput
   - Cortex-M55 vector-load bank conflict
   - DTCM address bits 3:2
+  - Cortex-M55 DTCM store-to-read bank condition
 evidence_basis: "Bank-selection and processor timing details are source-reported in the linked public processor guides. CMSIS-DSP v1.18.0 links corroborate CFFT gather/scatter implementation structure."
 ---
 
@@ -64,3 +66,7 @@ When the application's vector-load access pattern permits it, consider a data la
 ## CMSIS-DSP CFFT gather/scatter implementation
 
 The CMSIS-DSP v1.18.0 [F32 CFFT](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f32.c) and [F16 CFFT](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f16.c) sources show the released final-stage kernels loading irregular lane positions with gathers, forming sums and differences without loading twiddles, and scattering the outputs. The private [FFT helper header](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/PrivateInclude/arm_vec_fft.h) also contains MVE gather/scatter helpers. Check the actual gather offsets and buffer addresses against the target's bank-selection rule before changing data placement. See [Helium FFT butterflies](../techniques/techniques-helium-fft-butterflies.md) for the released implementation references.
+
+## Keep Cortex-M55 store-to-read and load-pair hazards separate
+
+The processor-specific source also reports a DTCM condition on Cortex-M55: a read that follows a write to the same DTCM bank may be delayed. When a store and following load access independent buffers, evaluate offsets or placement that put those accesses in different banks, then measure the complete workload on the target. A load that must read the value just stored at the same address retains that dependency; changing bank placement cannot remove it. This store-to-read case is distinct from the same-bank conflict conditions for paired or gather loads described above. Preserve the existing Cortex-M55 r1p1 and Cortex-M85 r1p0 qualifications; do not generalize a core-specific rule to another revision.

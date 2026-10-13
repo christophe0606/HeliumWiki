@@ -1,0 +1,52 @@
+---
+id: patterns-helium-dtcm-dma-pipeline
+title: Stage DSP data through TCM and DMA buffers
+type: patterns
+architectures:
+  - armv8.1-m
+  - cortex-m52
+  - cortex-m55
+  - cortex-m85
+tags:
+  - data-placement
+  - data-tcm
+  - instruction-tcm
+  - helium
+confidence: source-reported
+reproducibility: concept
+related:
+  - hardware-itcm-instruction-data-contention
+  - hardware-dtcm-scatter-gather-banks
+  - techniques-cortex-m-data-prefetch-and-cache-hints
+  - techniques-cache-dma-buffer-visibility
+  - patterns-sequential-buffer-overlays
+sources:
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Memory/Software_optimization_for_memory_constrained_devices.md#L24-L52
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Memory/Software_optimization_for_memory_constrained_devices.md#L56-L83
+  - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Memory/Software_optimization_for_memory_constrained_devices.md#L105-L115
+aliases:
+  - DTCM working-set allocation
+  - DMA ping-pong DSP buffers
+  - ITCM and DTCM real-time placement
+prerequisites:
+  - Check the processor and system memory map, TCM capacity, linker placement, cache attributes, and DMA reachability.
+  - Define buffer ownership and synchronization between DMA and CPU before enabling overlap.
+---
+
+Use this pattern when a Cortex-M DSP or ML workload has a small time-critical working set, larger streaming buffers, or DMA transfers that can overlap CPU processing. TCM availability, capacity, access paths, retention, security partitions, and reachability vary by processor and system integration; verify them for the device before assigning memory.
+
+## Prioritize deterministic code and data
+
+Plan placement around the active workload rather than total program size. When bounded interrupt response matters, first evaluate the vector table and critical exception or interrupt handlers for ITCM placement; evaluate the main stack and critical working data for DTCM placement, subject to the device's startup, linker, and memory-map requirements. Then allocate remaining TCM to the hot DSP or ML code and data blocks that benefit from deterministic access. Keep instruction and data TCM roles distinct: constants placed with code can compete with instruction fetches, and some cores have narrower ITCM data paths. Check the selected processor's documented ports, bus widths, and bank behavior rather than assuming the TCMs are interchangeable.
+
+A cacheable SRAM working set may be sufficient for sequential streams, while DTCM can be reserved for data whose latency or predictability matters. Compare the actual linked placement and steady-state hot set; a large image does not imply that every instruction or buffer needs TCM. Link [core-specific prefetch guidance](../techniques/techniques-cortex-m-data-prefetch-and-cache-hints.md) and [ITCM instruction/data contention](../hardware/hardware-itcm-instruction-data-contention.md).
+
+## Stage input with explicit DMA ownership
+
+For streaming input, larger I/O buffers can remain in system SRAM while the current processing block is staged in DTCM. This can reduce DTCM usage while increasing total storage, because the system-SRAM I/O buffers and staged working buffers coexist. A ping-pong arrangement can let DMA fill one input buffer while the CPU consumes the other, but use two buffers only when the application needs this overlap and the system supports it. Define the ownership sequence explicitly: DMA owns and fills a buffer; a completion event and required synchronization transfer ownership to the CPU; the CPU consumes the completed data; only after consumption may the buffer return to DMA.
+
+Confirm that the selected DMA can access the chosen TCM region and that bus arbitration, interconnect contention, transfer duration, and processing deadlines permit useful overlap. DMA activity does not by itself accelerate the kernel. If those conditions are not met, a single staged buffer or system-SRAM processing path may be simpler.
+
+## Choose output placement separately
+
+CPU-produced output may stay in main memory when buffering or the memory system can absorb stores. DTCM output followed by a DMA transfer is another option when the platform supports it and the transfer can be scheduled safely. Overlapping output transfer with input transfer is conditional on independent DMA channels and interconnect resources, and can require more buffers. Treat cache visibility and ownership as a separate contract; see [CPU and DMA cache visibility](../techniques/techniques-cache-dma-buffer-visibility.md).

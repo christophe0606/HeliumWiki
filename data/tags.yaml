@@ -35,6 +35,8 @@ techniques:
   - cmsis-dsp-migration
   - buffer-alignment
   - processor-initialization
+  - profile-guided-optimization
+  - trace-analysis
 
 type:
   - hardware
