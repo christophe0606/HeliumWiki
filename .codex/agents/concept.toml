@@ -8,6 +8,7 @@ This wiki is a concept map to be used as an entry point into the wiki.
 It lists the pages with their id, path, and a one line quick description as a table. id in one column. path in a second and description in a 3rd column.
 Pages are organized into different sections that do not have to reflect the wiki folders. Organization is by concept.
 Pages covering similar concepts are in the same section.
+The README do not need to list the sources that were used to generate the pages.
 The new pages are the markdown files in the wiki that have not yet been staged or committed to git. Those new pages are used to update the concept map.
 
 """

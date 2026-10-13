@@ -32,5 +32,5 @@ Links between wiki pages are made though their id and corresponding yaml fields.
 The source in yaml header is either a URL or the name of an official document
 
 The markdown must start with a short paragraph that describes when the optimization guideline should be applied and what problem it solves.
-
+The markdown MUST NOT contain any customer or partner proprietary information.
 """
