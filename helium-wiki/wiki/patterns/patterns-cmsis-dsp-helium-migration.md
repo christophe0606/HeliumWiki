@@ -12,6 +12,8 @@ tags:
   - mve
   - c
   - cpp
+  - half-precision
+  - floating-point
 confidence: source-reported
 reproducibility: concept
 related:
@@ -24,6 +26,9 @@ related:
   - techniques-helium-df1-iir-vectorization
   - patterns-helium-small-kernel-fusion
   - techniques-helium-fft-butterflies
+  - techniques-helium-matrix-kernel-layout
+  - techniques-helium-vector-reductions
+  - techniques-helium-predication-and-tail-handling
 sources:
   - https://support.arm.com/documentation/102095/0101/?lang=en
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
@@ -41,6 +46,12 @@ sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/ComplexMathFunctions/arm_cmplx_mult_real_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/SupportFunctions/arm_q15_to_float.c
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/BasicMathFunctions/arm_add_f16.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/StatisticsFunctions/arm_max_no_idx_f16.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FastMathFunctions/arm_vexp_f16.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Include/arm_vec_math_f16.h
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Include/arm_helium_utils.h
 aliases:
   - CMSIS-DSP arm_math.h build integration
   - CMSIS-DSP MVE porting
@@ -49,6 +60,9 @@ aliases:
   - Helium biquad initialization
   - CMSIS-DSP block-size selection
   - replace scalar DSP loops with CMSIS-DSP APIs
+  - CMSIS-DSP F16 matrix-vector and bias composition
+  - CMSIS-DSP F16 extrema and vector exponential
+  - MVE F16 public math APIs
 prerequisites:
   - Build the CMSIS-DSP source for the processor's actual feature configuration.
   - Check the documentation for the specific CMSIS-DSP release and function before changing buffer sizes or padding.
@@ -110,6 +124,14 @@ CMSIS-DSP also provides classical machine-learning functions in areas including 
 Select a public CMSIS-DSP classical-ML function by matching its task semantics, input type, and configured MVE support in the release being built. Treat the book's named vector paths and approximation helpers, including reciprocal or logarithm helpers where used, as a 2020 snapshot: verify current declarations, contracts, and approximation behavior in that release, and do not infer availability from Helium target flags alone. Do not change the model algorithm solely to fit an instruction; first establish that a candidate function preserves the task semantics. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 230–231]
 
 Match each function's element count, input/output layout, aliasing rules, numeric format, and accumulation behavior. In particular, complex routines may count complex samples while buffers hold separate real and imaginary values. Preserve fixed-point scaling, saturation and rounding, or floating-point evaluation behavior where those are part of the caller's contract. Check boundary lengths and tails rather than copying an example's count mechanically.
+
+## Compose public F16 matrix and math operations
+
+A row-major F16 dense layer can map to `arm_matrix_instance_f16` with `numRows` set to the output count, `numCols` to the input count, and `pData` pointing at the weights. The public `arm_mat_vec_mult_f16` operation produces row sums; `arm_add_f16` can then add the bias over the output count. This is a reference decomposition for matrix-vector multiplication followed by vector addition. Check the selected [CMSIS-DSP v1.18.0 matrix-vector](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c) and [vector-add](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/BasicMathFunctions/arm_add_f16.c) contracts, enabled F16 build path, dimensions, zero-size behavior, arithmetic range, and buffer overlap before using it in place of a scalar loop.
+
+Audit memory access as well as API names. In the selected matrix-vector implementation, the final input load is predicated but corresponding weight loads and FMA are full width. The vector-add tail also reads complete source vectors while only its output store is predicated. Use these routines directly only when every full-width access is within valid storage and padded values satisfy the arithmetic contract, including the intermediate output consumed by the add; otherwise provide a bounded tail or scalar cleanup. Exact output-in-place support in the selected add implementation does not establish arbitrary partial-overlap safety. Preserve unread inputs, weights, and bias.
+
+For elementwise extrema and exponential work, consider public `arm_max_no_idx_f16` and `arm_vexp_f16` when their semantics fit. The F16 exponential uses a vector approximation for full groups and scalar `expf` for leftover elements, so validate accuracy and range across both paths. Its vector helper is a range-reduced polynomial implementation, not a hardware exponential instruction; very small values can underflow during reconstruction. The maximum implementation seeds with a finite minimum and uses number-max operations, so check NaN, infinity, and empty-input requirements rather than assuming every custom comparison loop has equivalent behavior. See [MVE reductions](../techniques/techniques-helium-vector-reductions.md) and [invariant output work](patterns-helium-small-kernel-fusion.md). `vecAddAcrossF16Mve` in the public support header is a library helper, not an architectural horizontal-add instruction or a stable standalone DSP API; pin and inspect it if a maintained custom kernel depends on it.
 
 ## Preserve the FFT wrapper contract
 

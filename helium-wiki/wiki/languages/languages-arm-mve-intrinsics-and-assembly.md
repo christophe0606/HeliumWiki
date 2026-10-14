@@ -12,6 +12,7 @@ tags:
   - c
   - cpp
   - asm
+  - half-precision
 confidence: source-reported
 reproducibility: concept
 related:
@@ -21,6 +22,9 @@ related:
   - techniques-helium-matrix-kernel-layout
   - techniques-helium-vector-reductions
   - patterns-cmsis-dsp-helium-migration
+  - techniques-helium-auto-vectorization
+  - techniques-helium-low-overhead-loop-alignment
+  - languages-c-float16-half-precision
 sources:
   - https://support.arm.com/documentation/102095/0101/?lang=en
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
@@ -28,6 +32,7 @@ sources:
   - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-why-not-just-add-neon
   - https://github.com/llvm/llvm-project/blob/main/llvm/lib/Target/ARM/ARMInstrMVE.td
   - https://github.com/ARM-software/abi-aa/blob/main/aapcs32/aapcs32.rst
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c
 aliases:
   - __ARM_MVE_PRESERVE_USER_NAMESPACE
   - MVE inline assembly clobbers
@@ -39,6 +44,8 @@ aliases:
   - MVE ECI exception continuation
   - MVE scalar register constraints
   - Helium widening-load base registers
+  - MVE F16 Q-register budget
+  - Helium F16 row accumulator register pressure
 ---
 
 Use these rules when implementing Helium code with C/C++ intrinsics, inline assembly, or callable assembly functions. They keep scalar-reference behavior, compiler assumptions, ABI obligations, and exception continuation state aligned so that low-level optimization does not silently break callers or interrupt handling.
@@ -70,6 +77,14 @@ When a hand-scheduled matrix loop keeps several output rows active, count genera
 Address-register classes can constrain the same loop. The contiguous signed byte-to-halfword VLDRB.S16 widening-load form uses a low GPR base (r0-r7) in the immediate addressing encoding. This is a form-specific constraint, not a property of every vector load. Confirm that the selected encoding applies and inspect emitted code. Keeping a separate weight pointer per row can exhaust this constrained class quickly. The packed traversal in [Helium matrix kernel layout](../techniques/techniques-helium-matrix-kernel-layout.md) advances one weight pointer across row segments and can reduce that base-pointer demand.
 
 Include input and output pointers, row accumulators, loop controls, temporary addresses, ABI-preserved registers, and any compiler-generated spills in the complete allocation. A low-overhead loop may keep LR live as loop state, and LR also carries the function return address at entry; preserve the applicable calling convention before using it for another purpose. Recheck allocation when changing accumulator width, unroll or row-block size, or surrounding code. Treat row limits as properties of the exact implementation and ABI, not fixed MVE maxima. For accumulator-range choices see [Helium vector reductions](../techniques/techniques-helium-vector-reductions.md). [AAPCS32](https://github.com/ARM-software/abi-aa/blob/main/aapcs32/aapcs32.rst)
+
+## Budget Q registers for F16 row accumulators
+
+A blocked F16 dot-product loop can keep one shared input vector, one current weight vector, and one lane-wise accumulator for each active output row. MVE exposes eight Q registers, so this simplified live-set count leaves at most six row accumulators when both shared vectors are live. It is only a ceiling for that loop body: reduction temporaries, predicates, bias or scalar values, saved state, and compiler allocation can lower the practical group size. F16 scalar S/D values share storage with Q registers, so account for that aliasing when inspecting generated code.
+
+The vector-register count is only part of the budget. Separate weight pointers for each row, input/output/bias pointers, dimensions, loop counters, and low-overhead-loop state consume general-purpose registers and interact with the applicable ABI. F16 VFMA accumulates lane-wise partial sums in Q registers and still needs a final reduction; this differs from integer dot forms that reduce into a GPR accumulator. The maintained [CMSIS-DSP F16 matrix-vector implementation](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c) provides a smaller row-group reference. Inspect allocation and spills for the selected compiler and target rather than treating the six-row ceiling as an optimum.
+
+If handwritten assembly is justified, preserve the complete function contract: initialize every accumulator, guard zero work, use the correct halfword count, align the actual loop target, expose post-incremented pointers as read/write, declare changed registers and memory effects, preserve ABI-required state, and perform reductions, bias, stores, and remainders. Follow [Helium loop alignment](../techniques/techniques-helium-low-overhead-loop-alignment.md) and [tail handling](../techniques/techniques-helium-predication-and-tail-handling.md); an isolated loop body is not a complete callable implementation.
 
 ## Make inline-assembly effects visible to the compiler
 

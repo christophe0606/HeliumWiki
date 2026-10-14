@@ -11,6 +11,7 @@ tags:
   - floating-point
   - c
   - asm
+  - half-precision
 confidence: source-reported
 reproducibility: concept
 related:
@@ -20,6 +21,7 @@ related:
   - techniques-helium-auto-vectorization
   - techniques-helium-matrix-kernel-layout
   - languages-arm-mve-intrinsics-and-assembly
+  - patterns-cmsis-dsp-helium-migration
 sources:
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-why-not-just-add-neon
@@ -27,6 +29,8 @@ sources:
   - https://arm-software.github.io/acle/mve_intrinsics/mve.html
   - https://github.com/ARM-software/CMSIS-DSP/tree/main/Source/MatrixFunctions
   - https://github.com/ARM-software/CMSIS-DSP/tree/main/Source/SupportFunctions
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Include/arm_helium_utils.h
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c
 aliases:
   - Helium complex Q31 dot product
   - Helium integer reductions
@@ -36,6 +40,8 @@ aliases:
   - MVE floating-point reduction
   - MVE scalar accumulator for widening reductions
   - MVE s8 by s16 accumulator range
+  - MVE F16 eight-lane pairwise reduction
+  - Helium exponential reduction tail handling
 ---
 
 Use these reduction choices when a Helium kernel combines lane results into a scalar sum, dot product, extremum, or index. Matching the reduction form to accumulator width, initialization, signedness, tail mask, and numeric order prevents scalar overflow and incorrect results from inactive lanes or changed floating-point association.
@@ -75,6 +81,14 @@ The public count in the guide is complex samples, while each sample occupies two
 For floating-point dot products, accumulate products into lane-wise vector partial sums and then combine those lane sums in a final scalar reduction. Integer across-vector sum instructions do not provide the corresponding F16 or F32 reduction; use an explicit lane-combination sequence or a supported library helper. A pairwise F16 vector-reversal/addition tree can avoid extracting every lane individually, but it changes the order of additions. Validate the resulting rounding error against the application's tolerance; do not assume reordering leaves the final floating-point value unchanged. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 86, 138, 146–148]
 
 Use a predicate-aware reduction for an incomplete vector so inactive lanes do not enter the result. If a later operation reduces an intermediate vector, do not leave inactive lanes undefined and then include them in an unmasked reduction; use a supported predicate form or provide valid neutral values before reduction. Check both the arithmetic tail and any tail memory access, as described in [Helium lane predicates and tail handling](techniques-helium-predication-and-tail-handling.md). [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 145–148]
+
+## Reduce eight F16 lanes with an explicit pairwise tree
+
+For eight F16 partial sums `a0` through `a7`, an MVE reduction can use two vector reversals and additions. `VREV32.16` swaps adjacent halfwords; adding the original and reversed vectors forms `(a0+a1)`, `(a2+a3)`, `(a4+a5)`, and `(a6+a7)` in replicated lane pairs. `VREV64.32` then exchanges the two 32-bit pairs within each 64-bit half; the next F16 addition forms each four-element partial sum in lanes 0–3 and 4–7. Add lanes 0 and 4 for the final result. The association is `((a0+a1)+(a2+a3)) + ((a4+a5)+(a6+a7))`, with F16 rounding at each addition.
+
+The public [CMSIS-DSP v1.18.0 `vecAddAcrossF16Mve` helper](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Include/arm_helium_utils.h) corroborates this lane tree by reinterpreting bits for the reversals, restoring the F16 view, and adding the selected scalar lanes. This is a pairwise tree, not a scalar left fold or a dedicated architectural F16 horizontal-add instruction. F16 VFMA lane accumulators already have their own association before this final tree, so validate rounding and intermediate range against the application contract.
+
+Initialize lane accumulators to zero and include only valid elements in a partial block. Predicated updates should preserve accumulated values in inactive lanes. For a reduction of `exp(x-m)`, zero-filled input lanes are not neutral because `exp(0-m)` is generally nonzero: mask the contribution after the transform or predicate its accumulation, then reduce only valid contributions. Bound both sides of a dot-product tail and its arithmetic; multiplying an inactive zero by a non-finite padded value is not a safe identity. Use explicit predicates or scalar cleanup, and see [public F16 exponential contracts](../patterns/patterns-cmsis-dsp-helium-migration.md) for the vector and scalar paths.
 
 ## Seed extrema and retain matching indices
 

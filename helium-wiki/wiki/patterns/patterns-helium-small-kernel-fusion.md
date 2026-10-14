@@ -12,6 +12,8 @@ tags:
   - mve
   - auto-vectorization
   - instruction-scheduling
+  - half-precision
+  - floating-point
 confidence: source-reported
 reproducibility: concept
 related:
@@ -21,6 +23,8 @@ related:
   - techniques-helium-matrix-kernel-layout
   - techniques-helium-vector-reductions
   - techniques-helium-fixed-point-arithmetic
+  - languages-c-float16-half-precision
+  - techniques-helium-predication-and-tail-handling
 sources:
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L849-L867
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L1337-L1371
@@ -28,11 +32,19 @@ sources:
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://github.com/ARM-software/CMSIS-DSP/tree/main/Source/MatrixFunctions
   - https://github.com/ARM-software/CMSIS-DSP/tree/main/Source/BasicMathFunctions
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/BasicMathFunctions/arm_add_f16.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/StatisticsFunctions/arm_max_no_idx_f16.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FastMathFunctions/arm_vexp_f16.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Include/arm_vec_math_f16.h
 aliases:
   - Helium loop fusion
   - eliminate short DSP temporary buffers
   - inline short CMSIS-DSP call chains
   - fuse matrix-vector output scaling after row reduction
+  - Helium F16 bias after row reduction
+  - Invariant exponential output factor
+  - F16 exponential reduction kernel fusion
 prerequisites:
   - Profile the complete application to confirm that the call chain is worth changing.
   - Define numerical, aliasing, and boundary-count behavior before combining operations.
@@ -59,3 +71,11 @@ When a completed matrix-vector row immediately feeds independent output bias or 
 Preserve the complete output contract: raw signed 32-bit sum or quantized output, bias width and order, multiplier and shift, rounding mode, saturation, and output signedness. Add final bias or scaling only when the caller requires it. Bound the accumulator including any fused bias, and account for live per-row metadata, aliasing, tails, and register pressure when checking generated code. See [Helium matrix kernel layout](../techniques/techniques-helium-matrix-kernel-layout.md), [Helium vector reductions](../techniques/techniques-helium-vector-reductions.md), and [Helium fixed-point arithmetic](../techniques/techniques-helium-fixed-point-arithmetic.md).
 
 Check the selected public [CMSIS-DSP matrix](https://github.com/ARM-software/CMSIS-DSP/tree/main/Source/MatrixFunctions) or [basic math](https://github.com/ARM-software/CMSIS-DSP/tree/main/Source/BasicMathFunctions) routine for its full contract before treating it as a reference. A quantized NN kernel may include bias and requantization that a raw matrix-vector result does not; such a routine is not interchangeable solely because its inner products look similar.
+
+## Finalize F16 rows and hoist invariant exponential work
+
+For an F16 dense row, keep the partial products in lane accumulators, reduce the completed row, add its bias once, and store the result. Seeding every lane with the full bias would add the bias once per lane during reduction. The fused and library paths may use different F16 rounding and contraction, so define the allowed numerical error before replacing one with the other. See [F16 row blocking](../techniques/techniques-helium-matrix-kernel-layout.md) and [pairwise reductions](../techniques/techniques-helium-vector-reductions.md).
+
+**Mathematical derivation for real-valued inputs:** for a vector of length `N > 0`, let `m = max_i(x_i)` and `s = sum_i exp(x_i - m)`. For finite real inputs, `s` is positive. The expression `sqrt(s^2 / (N * exp(x_i)))` simplifies to `(s / sqrt(N)) * exp(-x_i / 2)`. The factor `s / sqrt(N)` is independent of output index, so compute it once after the max and exponential-sum reductions; then vectorize the per-element exponential and multiplication for valid outputs. This is an algebraic decomposition, not a standard softmax operation. The pass order remains max, sum, common-factor computation, then output because each later stage depends on the earlier reduction.
+
+The real-number identity does not guarantee F16 equivalence. The original square or exponential can overflow or underflow; the transformed exponential and common factor have their own range limits. Narrowing, rounding, exceptional values, and the CMSIS-DSP vector exponential approximation can change results, and its scalar remainder may use `expf`. Set an input range and error tolerance and validate both paths before adopting the rewrite. Require `N > 0`, define empty-input behavior separately, and bound all input and output tails. See [CMSIS-DSP F16 math APIs](patterns-cmsis-dsp-helium-migration.md) for implementation details.

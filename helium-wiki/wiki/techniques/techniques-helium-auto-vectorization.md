@@ -14,6 +14,8 @@ tags:
   - low-overhead-branch
   - c
   - cpp
+  - half-precision
+  - floating-point
 confidence: source-reported
 reproducibility: snippet
 related:
@@ -26,6 +28,7 @@ related:
   - languages-arm-mve-intrinsics-and-assembly
   - languages-c-float16-half-precision
   - patterns-helium-small-kernel-fusion
+  - techniques-helium-predication-and-tail-handling
 sources:
   - https://support.arm.com/documentation/102095/0101/?lang=en
   - https://llvm.org/docs/Vectorizers.html
@@ -37,6 +40,7 @@ sources:
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L1019-L1227
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://github.com/ARM-software/CMSIS-DSP/tree/v1.18.0/Source/FilteringFunctions
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c
 aliases:
   - Helium SLP loop vectorization and interleaving
   - clang loop vectorization hints
@@ -47,6 +51,8 @@ aliases:
   - MVE loop layout and data reuse
   - Helium vectorization quality inspection
   - MVE mixed-width vectorization width
+  - Clang vectorize_predicate loop hint
+  - MVE F16 vectorization inspection
 prerequisites:
   - Compile for a target configuration that implements the intended Helium features.
   - Preserve the program's behavior when changing loop structure or pointer contracts.
@@ -113,6 +119,18 @@ Compiler vectorization remarks explain why a loop was or was not vectorized, but
 For fixed-point code, preserve signedness, scaling, saturation, and rounding when exposing vectorizable idioms. For float-to-integer conversion, explicitly match the required rounding and saturating-narrowing behavior and validate boundary values. Avoid double-precision literals in an intended F32 expression if the conversion to double is unnecessary and changing it preserves the numerical contract. MVE has no vector double-precision arithmetic or native vector division. A reciprocal-based vector approximation is an option only when the application accepts its error and exceptional-value behavior; do not silently substitute it for division with different numerical semantics.
 
 Treat source changes that alter numeric representation or evaluation as contract changes: replacing double with float, allowing floating-point reassociation, changing fused-operation or rounding behavior, or narrowing a data type all require range and error evidence. Use `restrict` only when the relevant pointers truly cannot alias. A tail predicate may disable lanes beyond the caller's valid element count, but masking away required input or output elements is not a valid optimization. Recheck the full result, including boundary lengths and numerical tolerances, after these changes. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 53, 135–138]
+
+## Inspect F16 vectorization and test tail policy
+
+For an F16 row-dot loop targeting MVE floating point, inspect compiler remarks and emitted code for eight-lane loads and fused multiply-accumulates, a complete horizontal reduction, bias after that reduction, and correct zero-count and tail paths. A vectorized loop can still have excess predicate setup, spills, or an unsuitable schedule; row blocking also changes live-register pressure. Compare generated code under the selected compiler and target, and preserve the numerical contract when contraction or reassociation changes.
+
+Place this Clang loop hint immediately before the column loop as an experiment when the default vectorizer folds the remainder into a predicated vector loop:
+
+```c
+#pragma clang loop vectorize_predicate(disable)
+```
+
+Treat this as a compiler policy experiment. Current [Clang loop-hint documentation](https://clang.llvm.org/docs/LanguageExtensions.html#extensions-for-loop-hint-optimizations) describes `vectorize_predicate(enable)` as permitting tail folding; it does not establish how every compiler version interprets `disable` or what loop instruction sequence it emits. Check support in the selected Clang or armclang release, compare with its default, and inspect whether it emits a full-vector main loop with a scalar remainder. Disabling vectorizer tail folding never permits an out-of-bounds access or an omitted remainder. Keep zero-count handling, bounded loads, reduction, and final bias correct. The release-pinned [CMSIS-DSP F16 matrix-vector implementation](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c) is a public example to inspect, not proof that a custom loop has the same contracts.
 
 ## Keep cache locality and tiling conditional on the target
 

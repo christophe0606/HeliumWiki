@@ -10,6 +10,8 @@ tags:
   - matrix-kernel-layout
   - c
   - asm
+  - half-precision
+  - floating-point
 confidence: source-reported
 reproducibility: concept
 related:
@@ -24,11 +26,13 @@ related:
   - hardware-dtcm-scatter-gather-banks
   - languages-arm-mve-intrinsics-and-assembly
   - patterns-cmsis-dsp-helium-migration
+  - languages-c-float16-half-precision
 sources:
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://github.com/ARM-software/CMSIS-DSP/tree/v1.18.0/Source/MatrixFunctions
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_q15.c
   - https://arm-software.github.io/acle/mve_intrinsics/mve.html
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c
 aliases:
   - MVE matrix row blocking
   - Helium matrix-vector row reuse
@@ -38,6 +42,8 @@ aliases:
   - Helium s8 by s16 matrix-vector dot product
   - MVE packed matrix row-block traversal
   - Helium matrix-vector block-interleaved weights
+  - Helium F16 dense matrix-vector row blocking
+  - MVE F16 dense layer input reuse
 prerequisites:
   - Confirm matrix dimensions, row/column layout, element type, numeric scaling, and source/destination overlap requirements.
   - Check the selected CMSIS-DSP release for a matching public matrix routine before maintaining a custom kernel.
@@ -72,6 +78,16 @@ For an integer matrix-vector kernel with a matching scalar-result reduction, loa
 For a quantized NN matrix kernel, reuse each loaded input vector across independent output-row dot products and interleave independent matrix loads and multiply-accumulates when the selected target permits it. Keep row accumulators within the chosen kernel's width and range, and preserve its input offsets, bias handling, row and column tails, and final output scaling. The book's load/MAC schedule is an implementation example; confirm dependencies and generated code on the target rather than assuming a universal schedule. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF p. 221]
 
 Floating-point row blocks also need independent accumulators for each output. Lane-wise partial sums require a final reduction, and changing their association must fit the numerical contract; see [Helium vector reductions](techniques-helium-vector-reductions.md).
+
+## Reuse F16 inputs across dense output rows
+
+Use this mapping for a row-major F16 dense matrix-vector layer, y[r] = b[r] + sum_c(W[r,c] * x[c]). Eight half-precision values fit an MVE vector. For each input segment, load x once, then update separate lane-wise accumulators from the corresponding contiguous weight segment of several output rows. This shares input traffic while keeping the original row-major matrix; it is row blocking, distinct from unrolling consecutive column iterations. Repeated input loads compete with weight loads for memory-transfer resources on the selected Cortex-M55 path. Reusing the input and interleaving independent weight loads with row arithmetic can ease that demand; confirm overlap and dependencies on the actual core. See [MVE ACLE](https://arm-software.github.io/acle/mve_intrinsics/mve.html) and [F16 matrix-vector row reduction](techniques-helium-vector-reductions.md).
+
+Handle output-row remainders separately from a partial input vector so no nonexistent row or bias is read. Zero output rows require no output access; for the defined empty-column sum, zero input columns produce bias-only outputs. In a custom column tail, bound both input and weight accesses and exclude invalid products with predicated arithmetic or scalar cleanup. See [Helium tail handling](techniques-helium-predication-and-tail-handling.md).
+
+Reduce each row's eight partial sums after all columns have contributed, add that row's bias once, and then store. The F16 fused multiply-accumulate and lane reduction can round differently from a scalar left-to-right loop, so define the accepted error and intermediate range. See [F16 finalization and invariant work](../patterns/patterns-helium-small-kernel-fusion.md).
+
+Choose the row-group size from the complete live set: shared input and weight vectors, one accumulator per active row, reduction temporaries, row pointers, loop state, bias values, ABI obligations, and spills. A larger group can reuse x more, but does not guarantee a better schedule. The public [CMSIS-DSP v1.18.0 F16 matrix-vector implementation](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c) uses a four-row main group and separate smaller row remainders as one maintained example. Audit its column-tail contract before reuse: the tail predicates the input load but still reads full weight vectors and performs unpredicated arithmetic. Ensure those accesses are valid and padded values meet the numeric contract, or use a bounded tail path. See [MVE F16 register budgeting](../languages/languages-arm-mve-intrinsics-and-assembly.md).
 
 ## Preserve contiguous traversal or amortize packing
 

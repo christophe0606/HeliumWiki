@@ -18,9 +18,11 @@ languages-arm-mve-intrinsics-and-assembly:
 - Arm MVE ACLE intrinsics
 - arm_mve.h vector types
 - Helium exception context
+- Helium F16 row accumulator register pressure
 - Helium inline assembly contracts
 - Helium widening-load base registers
 - MVE ECI exception continuation
+- MVE F16 Q-register budget
 - MVE inline assembly clobbers
 - MVE register and ABI rules
 - MVE scalar register constraints
@@ -37,8 +39,11 @@ patterns-cmsis-dsp-helium-migration:
 - CMSIS-DSP arm_math.h build integration
 - CMSIS-DSP block-size selection
 - CMSIS-DSP Cortex-M55 migration
+- CMSIS-DSP F16 extrema and vector exponential
+- CMSIS-DSP F16 matrix-vector and bias composition
 - CMSIS-DSP MVE porting
 - Helium biquad initialization
+- MVE F16 public math APIs
 - replace scalar DSP loops with CMSIS-DSP APIs
 patterns-cmsis-nn-mve-runtime-selection:
 - CMSIS-NN MVE runtime integration
@@ -55,9 +60,12 @@ patterns-helium-dtcm-dma-pipeline:
 - ITCM and DTCM real-time placement
 patterns-helium-small-kernel-fusion:
 - eliminate short DSP temporary buffers
+- F16 exponential reduction kernel fusion
 - fuse matrix-vector output scaling after row reduction
+- Helium F16 bias after row reduction
 - Helium loop fusion
 - inline short CMSIS-DSP call chains
+- Invariant exponential output factor
 patterns-sequential-buffer-overlays:
 - reuse nonoverlapping DSP workspaces
 - sequential data-buffer overlay
@@ -167,9 +175,11 @@ techniques-cortex-m85-memory-access-scheduling:
 techniques-helium-auto-vectorization:
 - armclang vectorization remarks
 - clang loop vectorization hints
+- Clang vectorize_predicate loop hint
 - Helium auto-vectorization
 - Helium SLP loop vectorization and interleaving
 - Helium vectorization quality inspection
+- MVE F16 vectorization inspection
 - MVE loop layout and data reuse
 - MVE loop vectorization
 - MVE mixed-width vectorization width
@@ -226,12 +236,14 @@ techniques-helium-low-overhead-loop-alignment:
 - MVE loop target alignment
 - WLS DLS alignment
 techniques-helium-matrix-kernel-layout:
+- Helium F16 dense matrix-vector row blocking
 - Helium matrix transpose layout
 - Helium matrix-vector block-interleaved weights
 - Helium matrix-vector row reuse
 - Helium s8 by s16 matrix-vector dot product
 - MVE 3x3 transpose scatter store
 - MVE 4x4 transpose VLD4
+- MVE F16 dense layer input reuse
 - MVE matrix row blocking
 - MVE packed matrix row-block traversal
 techniques-helium-memory-access-layout:
@@ -273,10 +285,12 @@ techniques-helium-vector-data-alignment:
 - MVE buffer alignment
 techniques-helium-vector-reductions:
 - Helium complex Q31 dot product
+- Helium exponential reduction tail handling
 - Helium integer reductions
 - Helium vector sum and extrema
 - MVE argmax and argmin
 - MVE dot product accumulation
+- MVE F16 eight-lane pairwise reduction
 - MVE floating-point reduction
 - MVE s8 by s16 accumulator range
 - MVE scalar accumulator for widening reductions
