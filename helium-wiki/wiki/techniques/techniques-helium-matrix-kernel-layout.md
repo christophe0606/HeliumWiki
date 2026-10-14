@@ -16,22 +16,54 @@ related:
   - techniques-helium-memory-access-layout
   - techniques-helium-vector-reductions
   - techniques-helium-auto-vectorization
+  - techniques-helium-instruction-interleaving
+  - techniques-helium-predication-and-tail-handling
+  - techniques-helium-low-overhead-loop-alignment
+  - techniques-cortex-m-data-prefetch-and-cache-hints
+  - patterns-helium-dtcm-dma-pipeline
+  - hardware-dtcm-scatter-gather-banks
+  - languages-arm-mve-intrinsics-and-assembly
   - patterns-cmsis-dsp-helium-migration
 sources:
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://github.com/ARM-software/CMSIS-DSP/tree/v1.18.0/Source/MatrixFunctions
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_q15.c
+  - https://arm-software.github.io/acle/mve_intrinsics/mve.html
 aliases:
   - MVE matrix row blocking
   - Helium matrix-vector row reuse
   - Helium matrix transpose layout
   - MVE 4x4 transpose VLD4
   - MVE 3x3 transpose scatter store
+  - Helium s8 by s16 matrix-vector dot product
+  - MVE packed matrix row-block traversal
+  - Helium matrix-vector block-interleaved weights
 prerequisites:
   - Confirm matrix dimensions, row/column layout, element type, numeric scaling, and source/destination overlap requirements.
   - Check the selected CMSIS-DSP release for a matching public matrix routine before maintaining a custom kernel.
 ---
 
 Use this guidance when a small Helium matrix kernel is limited by repeated input loads or by a mismatch between matrix layout and vector accesses. Map the row-major storage to contiguous or structured vector operations, while preserving the kernel's accumulator, tail, and aliasing contracts.
+
+## Map mixed signed-width matrix-vector dots to eight lanes
+
+For a raw signed 8-bit matrix times signed 16-bit vector with signed 32-bit row outputs, preserve the contract y[r] = sum over c of sign_extend16(W[r,c]) * x[c]. This operation is matrix-vector multiplication. Keep it distinct from a quantized neural-network kernel that also applies input offsets, bias, requantization, rounding, or output saturation.
+
+An MVE signed halfword dot step uses eight lanes: load eight s16 input values and load eight s8 weights with sign extension into s16 lanes. The step consumes 16 input bytes and 8 weight bytes, and the narrow matrix stays packed in memory instead of requiring a full expanded copy. Signed extension is required to preserve negative weights. ACLE names the 32-bit scalar dot accumulator vmladavaq_s16 (instruction VMLADAVA.S16); its long counterpart is vmlaldavaq_s16 (VMLALDAVA.S16) for a 64-bit scalar accumulator. These are horizontal dot reductions into a scalar accumulator. Bound the complete row sum and intermediate range before choosing 32-bit accumulation; use a wider accumulator when necessary, and check that the final result meets the declared output range. [Arm MVE Intrinsics Reference](https://arm-software.github.io/acle/mve_intrinsics/mve.html)
+
+For each column block, load the input segment once, then reuse it while updating separate accumulators for a group of independent output rows. Keep the row remainder and column remainder as separate cases. For a short final column block, use bounded predicated loads plus inactive zero lanes or scalar cleanup; do not read beyond either object. Handle zero rows without touching output and, when the defined empty-column sum is used, write zero for each existing row. See [Helium lane predicates and tail handling](techniques-helium-predication-and-tail-handling.md) for predicate and loop-tail contracts.
+
+Choose the row-group size from the live vector set, independent row accumulators, scalar pointer and loop state, and accumulator range. A larger group can improve input reuse and reduce row-pointer work, but can also increase register pressure and spills. Interleave independent loads and dot operations only when the target permits it, then inspect compiler output and the loop backedge on the selected core. Treat a schedule as target-specific; do not infer a universal unroll factor or performance result. See [Helium instruction interleaving](techniques-helium-instruction-interleaving.md), [MVE ACLE and assembly contracts](../languages/languages-arm-mve-intrinsics-and-assembly.md), and [Helium auto-vectorization](techniques-helium-auto-vectorization.md).
+
+## Traverse packed row blocks as one weight stream
+
+For a row group g, column block b, local row r, and lane k, define the packed weight order as P[g,b,r,k] = W[gU+r, bB+k], where B is the number of weights consumed by one dot step and k ranges from 0 to B-1. Flatten in the order g, b, r, k; with the eight-lane signed-halfword dot step above, B = 8. Thus one column block stores the eight weight bytes for row 0, then row 1, through the valid rows in the group; the next block follows those row segments. Reuse the same input segment across those row segments. A packed-weight pointer can advance through this stream instead of maintaining a separate matrix pointer for every row. If storage reserves slots for an incomplete final row group, allocate those slots explicitly and never load an invalid row.
+
+This is row-block interleaving and traversal reordering; the logical operation remains y = W x. If the packed storage uses 16-byte weight blocks, traverse each storage block as two corresponding eight-lane dot steps; B remains the number of weights consumed by one dot step.
+
+A linear weight stream may simplify base-pointer state and improve sequential locality, including when weights reside in DTCM; it is not only a prefetch transformation. Evaluate placement and the actual cache or TCM path, and consider a DMA-to-DTCM pipeline where the system and reuse justify it. Pack static weights offline, or amortize online packing over enough calls to cover its transform work, scratch storage, and maintained layout contract. See [Cortex-M data prefetch and cache hints](techniques-cortex-m-data-prefetch-and-cache-hints.md), [DTCM and DMA pipeline](../patterns/patterns-helium-dtcm-dma-pipeline.md), and [DTCM bank access guidance](../hardware/hardware-dtcm-scatter-gather-banks.md).
+
+The public CMSIS-DSP [Q15 matrix-vector implementation](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_q15.c) illustrates reusing one input vector across independent row accumulators. Its arithmetic contract is Q15-by-Q15 with 64-bit accumulation and a shifted, saturated Q15 output, so it is a row-reuse reference only; it is not an implementation of the raw signed 8-by-16 to signed 32-bit operation described here.
 
 ## Reuse vector inputs across independent rows
 

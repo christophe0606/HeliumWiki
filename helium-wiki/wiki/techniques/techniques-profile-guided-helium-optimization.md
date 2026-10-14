@@ -22,18 +22,22 @@ related:
   - techniques-helium-low-overhead-loop-alignment
   - techniques-helium-predication-and-tail-handling
   - techniques-helium-instruction-interleaving
+  - techniques-helium-matrix-kernel-layout
 sources:
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L88-L198
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L868-L1018
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L1286-L1336
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel
+  - https://www.arm.com/products/development-tools/simulation/fast-models
+  - https://developer.arm.com/community/arm-community-blogs/b/tools-software-ides-blog/posts/using-arm-models-to-compare-compiler-performance
 aliases:
   - Helium hotspot profiling workflow
   - profile DSP and NN workloads
   - isolate hot loops for compiler inspection
   - scalar loop overhead after Helium vectorization
   - Amdahl's law and loop-control overhead
+  - Fast Models versus Cycle Models for MVE evaluation
 prerequisites:
   - Use a representative application build and workload.
   - Select an active profiler, trace source, or simulator that supports the target.
@@ -52,6 +56,12 @@ Active profiling can use markers, timestamps, PMU samples, or RTOS and stream-no
 After vectorizing a hot loop, the remaining serial work around the vector body can take a larger share of its cost. For short loops, inspect the generated loop for counter updates, conditional branches, setup, and scalar tail cleanup, then check whether those costs appear in the complete application profile. Branch cost depends on the target implementation, so verify it instead of assuming that scalar control always dominates. If profiling identifies counter or branch work as a bottleneck, consider a target-supported low-overhead loop form when its trip-count and control-flow semantics fit. Where supported and compatible with the loop's semantics, a tail-predicated form can avoid separate scalar cleanup; check the generated code and boundary behavior. [Making Helium: Bringing Amdahl's law to heel (4/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel)
 
 Loop unrolling can amortize loop-control work across iterations, but it increases code size and may make vectorization more difficult. Compare the generated loop and representative application profile before adopting it; treat unrolling as a tradeoff to evaluate rather than a default. [Making Helium: Bringing Amdahl's law to heel (4/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel)
+
+## Match the model to the question
+
+A functional simulator can check instruction behavior and program correctness, but that result alone does not establish how a Cortex-M55 schedule, cache path, or packed row-block layout performs. Arm describes Fast Models as functionally accurate programmer's view models. Use a timing-capable Cycle Model or the target hardware when evaluating schedule and memory-system behavior, and verify which timing and memory features the selected model actually implements. A model's timing is evidence for its documented scope, not proof of the complete target system's behavior. [Arm Fast Models](https://www.arm.com/products/development-tools/simulation/fast-models) [Using Arm Models to Compare Compiler Performance](https://developer.arm.com/community/arm-community-blogs/b/tools-software-ides-blog/posts/using-arm-models-to-compare-compiler-performance)
+
+Generated assembly and static scheduling analysis can help form a hypothesis. Evaluate the complete implementation with representative setup and placement, including any offline or online weight packing, entry/exit work, row and column tails, output stores, and fused finalization. Keep correctness checks on the functional path and use timing-capable evidence for performance questions; do not infer a measured kernel result from an instruction schedule alone. See [Helium matrix kernel layout](techniques-helium-matrix-kernel-layout.md).
 
 ## Isolate a hot loop for diagnosis
 

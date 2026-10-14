@@ -18,10 +18,15 @@ related:
   - techniques-helium-predication-and-tail-handling
   - languages-c-float16-half-precision
   - techniques-helium-auto-vectorization
+  - techniques-helium-matrix-kernel-layout
+  - languages-arm-mve-intrinsics-and-assembly
 sources:
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-why-not-just-add-neon
   - https://support.arm.com/documentation/102095/0101/?lang=en
+  - https://arm-software.github.io/acle/mve_intrinsics/mve.html
+  - https://github.com/ARM-software/CMSIS-DSP/tree/main/Source/MatrixFunctions
+  - https://github.com/ARM-software/CMSIS-DSP/tree/main/Source/SupportFunctions
 aliases:
   - Helium complex Q31 dot product
   - Helium integer reductions
@@ -30,6 +35,7 @@ aliases:
   - MVE argmax and argmin
   - MVE floating-point reduction
   - MVE scalar accumulator for widening reductions
+  - MVE s8 by s16 accumulator range
 ---
 
 Use these reduction choices when a Helium kernel combines lane results into a scalar sum, dot product, extremum, or index. Matching the reduction form to accumulator width, initialization, signedness, tail mask, and numeric order prevents scalar overflow and incorrect results from inactive lanes or changed floating-point association.
@@ -41,6 +47,14 @@ Use architectural integer across-vector sums or dot-product instructions when th
 The article gives one design rationale: a widening vector result can cross an MVE beat boundary; supported scalar reductions avoid that result path and ease vector-register pressure. Select them by numeric semantics and range. [Making Helium: Why not just add Neon? (1/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-why-not-just-add-neon)
 
 Choose the accumulator width from a worst-case bound on the full sum or product accumulation, including input signedness, maximum product magnitude, number of terms, scaling, and any incoming accumulator. A non-accumulating form replaces the scalar result with the reduction of the current vector operands; the `A` form adds to the existing scalar accumulator. For a multi-vector reduction, initialize the accumulator to the correct identity and use the accumulating form for subsequent groups so earlier partial sums are retained. Use a wider operation when a 32-bit result cannot hold the proven range; handle a partial final vector so invalid lanes contribute nothing. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 61, 84–88]
+
+### Bound mixed signed-byte by signed-halfword products
+
+For signed 8-bit weights in [-128, 127] and signed 16-bit inputs in [-32768, 32767], each exact product fits in signed 32 bits and has absolute value at most 2^22. A conservative sufficient condition for a signed 32-bit running sum with N products, incoming accumulator a0, and bias b is |a0| + N·2^22 + |b| ≤ 2^31−1. With zero initial value and no bias, N ≤ 511 guarantees that bound for every possible input combination. This is a mathematical worst-case bound, not a library limit; tighter documented input ranges can justify a less conservative bound.
+
+ACLE provides vmladavaq_s16 for a signed 32-bit scalar accumulation and vmlaldavaq_s16 for a signed 64-bit scalar accumulation. If the row's proven range exceeds signed 32 bits, use a wider exact accumulation when that preserves the required output semantics, then prove the final conversion to s32 is in range or define its narrowing, wrap, rounding, and saturation behavior explicitly. Do not treat a signed 32-bit output type as proof that every intermediate sum fits; ordinary signed overflow in C is not a valid optimization contract. [Arm MVE Intrinsics Reference](https://arm-software.github.io/acle/mve_intrinsics/mve.html)
+
+Initialize each row accumulator, sign-extend weights, and exclude inactive lanes in a partial final vector. A zero-column row has the defined empty-sum result; preserve that behavior. Long accumulators use register pairs, so include their GPR cost when choosing how many rows to process together; see [Helium matrix kernel layout](techniques-helium-matrix-kernel-layout.md) and [MVE ACLE and assembly contracts](../languages/languages-arm-mve-intrinsics-and-assembly.md).
 
 For Q31 dot products, the rounding-high long form `VRMLALDAVH` has a distinct result contract: it accumulates into a 72-bit value, rounds, then returns the selected high 64 bits. Its optional scalar accumulator is shifted before being added into that wider representation. This is not an ordinary full-precision sum of products; retain the scaling and output format expected by the selected library function. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 86–87]
 

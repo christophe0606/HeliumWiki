@@ -19,9 +19,11 @@ languages-arm-mve-intrinsics-and-assembly:
 - arm_mve.h vector types
 - Helium exception context
 - Helium inline assembly contracts
+- Helium widening-load base registers
 - MVE ECI exception continuation
 - MVE inline assembly clobbers
 - MVE register and ABI rules
+- MVE scalar register constraints
 languages-c-float16-half-precision:
 - _Float16 arithmetic
 - C half precision
@@ -53,6 +55,7 @@ patterns-helium-dtcm-dma-pipeline:
 - ITCM and DTCM real-time placement
 patterns-helium-small-kernel-fusion:
 - eliminate short DSP temporary buffers
+- fuse matrix-vector output scaling after row reduction
 - Helium loop fusion
 - inline short CMSIS-DSP call chains
 patterns-sequential-buffer-overlays:
@@ -104,6 +107,7 @@ techniques-cortex-m-data-prefetch-and-cache-hints:
 - Cortex-M52 PREFETCH and PFCR
 - Cortex-M52 PREFETCH availability by revision
 - Cortex-M55 linear-stream data prefetch
+- Cortex-M55 packed matrix weights and DTCM input
 - Cortex-M85 hardware data prefetch
 - Cortex-M85 streaming cache traffic
 - M85 PLD PLDW hints
@@ -168,6 +172,7 @@ techniques-helium-auto-vectorization:
 - Helium vectorization quality inspection
 - MVE loop layout and data reuse
 - MVE loop vectorization
+- MVE mixed-width vectorization width
 - restrict and vectorization
 techniques-helium-df1-iir-vectorization:
 - 4x12 IIR coefficient matrix
@@ -222,10 +227,13 @@ techniques-helium-low-overhead-loop-alignment:
 - WLS DLS alignment
 techniques-helium-matrix-kernel-layout:
 - Helium matrix transpose layout
+- Helium matrix-vector block-interleaved weights
 - Helium matrix-vector row reuse
+- Helium s8 by s16 matrix-vector dot product
 - MVE 3x3 transpose scatter store
 - MVE 4x4 transpose VLD4
 - MVE matrix row blocking
+- MVE packed matrix row-block traversal
 techniques-helium-memory-access-layout:
 - Helium byte and element pointer units
 - Helium contiguous and gather accesses
@@ -270,9 +278,11 @@ techniques-helium-vector-reductions:
 - MVE argmax and argmin
 - MVE dot product accumulation
 - MVE floating-point reduction
+- MVE s8 by s16 accumulator range
 - MVE scalar accumulator for widening reductions
 techniques-profile-guided-helium-optimization:
 - Amdahl's law and loop-control overhead
+- Fast Models versus Cycle Models for MVE evaluation
 - Helium hotspot profiling workflow
 - isolate hot loops for compiler inspection
 - profile DSP and NN workloads

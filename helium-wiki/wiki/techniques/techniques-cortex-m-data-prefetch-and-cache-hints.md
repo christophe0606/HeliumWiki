@@ -20,11 +20,13 @@ related:
   - techniques-cortex-m-memory-access-scheduling
   - hardware-dtcm-scatter-gather-banks
   - patterns-helium-dtcm-dma-pipeline
+  - techniques-helium-matrix-kernel-layout
 sources:
   - https://support.arm.com/documentation/107950/0100
   - https://support.arm.com/documentation/107730/0003
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/processor_specific.md#L40-L45
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Memory/Software_optimization_for_memory_constrained_devices.md#L105-L115
+  - https://documentation-service.arm.com/static/63190fc5ce77a54a32db3ac2
 aliases:
   - Cortex-M85 hardware data prefetch
   - M85 PLD PLDW hints
@@ -34,10 +36,11 @@ aliases:
   - Cortex-M52 PREFETCH and PFCR
   - Cortex-M55 linear-stream data prefetch
   - Cortex-M52 PREFETCH availability by revision
-evidence_basis: M52 r0p3 reports conditional hardware-prefetch inclusion and PFCR control; M85 r1p0 reports separate stream coverage, hint, and transient replacement behavior. Any cache-use advice is core-scoped and source-reported or explicitly identified as inference.
+  - Cortex-M55 packed matrix weights and DTCM input
+evidence_basis: M52 r0p3 reports conditional hardware-prefetch inclusion and PFCR control; M85 r1p0 reports separate stream coverage, hint, and transient replacement behavior. The Cortex-M55 r1p1 Issue 02 TRM documents one prefetch-supported data stream for its high-performance M-AXI L1 D-cache configuration, with unrelated normal linefills allowed alongside it. The packed-weight and DTCM-input placement example is a conditional implementation inference and carries no measured-gain claim. Any cache-use advice is core-scoped and source-reported or explicitly identified as inference.
 ---
 
-Use this page when checking data-prefetch support or cache hints on Cortex-M52, Cortex-M55, or Cortex-M85. The M52 r0p3 and M85 r1p0 sections follow their processor guides; the M55 section follows the repository's processor-specific article. Prefetcher inclusion, stream coverage, hint semantics, and replacement behavior differ by core and system configuration, so follow the matching section. The guides provide no measured workload speedups.
+Use this page when checking data-prefetch support or cache hints on Cortex-M52, Cortex-M55, or Cortex-M85. The M52 r0p3 and M85 r1p0 sections follow their processor guides; the M55 section combines its r1p1 Issue 02 Technical Reference Manual with public Arm processor-specific guidance. Prefetcher inclusion, stream coverage, hint semantics, and replacement behavior differ by core and system configuration, so follow the matching section. The cited sources do not establish workload gains for these recommendations.
 
 ## Cortex-M85 r1p0, Issue 01
 
@@ -76,8 +79,10 @@ For memory-transfer timing on M52, see [Cortex-M52 and Cortex-M55 memory-access 
 
 ## Cortex-M55 linear streams and memory placement
 
-The processor-specific source describes Cortex-M55 recognition of constant strides of -2, -1, +1, or +2 in data-array units. It does not specify the element size for those units, so do not translate them into byte strides, neighboring prefetch targets, or a fixed cache-line distance. Consult the matching core TRM for prefetch control details and check the actual access pattern before relying on hardware prefetch.
+The processor-specific source describes Cortex-M55 recognition of constant strides of -2, -1, +1, or +2 in data-array units. It does not specify the element size for those units, so do not translate them into byte strides, neighboring prefetch targets, or a fixed cache-line distance. For Cortex-M55 r1p1, Issue 02, the high-performance M-AXI configuration with an L1 D-cache supports one prefetch-tracked data stream; unrelated normal data linefills may coexist with that stream. This stream cannot cross an 8 KB prefetch granule boundary. These limits are scoped to the documented configuration; check the applicable TRM and system integration before relying on prefetch. [Arm Cortex-M55 Processor Technical Reference Manual, r1p1, Issue 02, §10.4.1.2, p. 177](https://documentation-service.arm.com/static/63190fc5ce77a54a32db3ac2)
 
 When a kernel uses several streams, evaluate whether the stream intended for cache prefetch remains in cacheable main memory while other streams use an appropriate TCM or noncacheable region. This is a workload experiment, not a general placement rule: TCM capacity, DMA reachability, cache behavior, and memory ownership still apply. Sequential cached access may work well without copying every input to DTCM, so compare the actual memory paths and working set before consuming scarce TCM.
+
+For a matrix-vector loop that reuses one input vector across several output rows, a useful Cortex-M55 placement hypothesis is to put the repeatedly reused input vector in DTCM when it fits and the system permits, while packing the row-blocked weights into one sequential stream in cacheable main memory. With row-major weights and independent row bases, a blocked loop touches several weight streams; the packed layout described in [Helium matrix kernel layout](techniques-helium-matrix-kernel-layout.md) lets one weight pointer advance through adjacent row segments for each shared input segment. The DTCM input keeps its repeated reads off the cacheable weight stream, leaving the matrix traversal as the kernel's intended prefetch-supported stream in the documented configuration. Account for the 8 KB prefetch-granule boundary when evaluating longer weight streams. This is a conditional layout inference from the documented prefetch scope, not a performance guarantee or a rule for every Cortex-M55 integration. Include packing and memory placement in the complete workload assessment, and use the [DTCM and DMA pipeline](../patterns/patterns-helium-dtcm-dma-pipeline.md) guidance for transfer reachability, ownership, completion, and cache visibility if DMA stages the weights.
 
 Keep the M52 revision-specific information already recorded above. The memory article says M52 revision 0 lacks data prefetch, while the M52 r0p3 guide records conditional `PREFETCH` inclusion. Check the device's exact revision and integration against its matching documentation; these sources do not justify a blanket claim about every M52 implementation. The M85 next-line and transient-hint behavior remains in the M85 sections and should not be inferred for M55. See [TCM workspaces and DMA pipelines](../patterns/patterns-helium-dtcm-dma-pipeline.md) when deciding which buffers should occupy TCM.

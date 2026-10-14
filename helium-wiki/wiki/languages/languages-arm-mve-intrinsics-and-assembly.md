@@ -18,12 +18,16 @@ related:
   - techniques-arm-compiler-mve-target-configuration
   - techniques-helium-predication-and-tail-handling
   - techniques-helium-instruction-interleaving
+  - techniques-helium-matrix-kernel-layout
+  - techniques-helium-vector-reductions
   - patterns-cmsis-dsp-helium-migration
 sources:
   - https://support.arm.com/documentation/102095/0101/?lang=en
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://developer.arm.com/architectures/system-architectures/software-standards/acle
   - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-why-not-just-add-neon
+  - https://github.com/llvm/llvm-project/blob/main/llvm/lib/Target/ARM/ARMInstrMVE.td
+  - https://github.com/ARM-software/abi-aa/blob/main/aapcs32/aapcs32.rst
 aliases:
   - __ARM_MVE_PRESERVE_USER_NAMESPACE
   - MVE inline assembly clobbers
@@ -33,6 +37,8 @@ aliases:
   - Helium exception context
   - arm_mve.h vector types
   - MVE ECI exception continuation
+  - MVE scalar register constraints
+  - Helium widening-load base registers
 ---
 
 Use these rules when implementing Helium code with C/C++ intrinsics, inline assembly, or callable assembly functions. They keep scalar-reference behavior, compiler assumptions, ABI obligations, and exception continuation state aligned so that low-level optimization does not silently break callers or interrupt handling.
@@ -56,6 +62,14 @@ An intrinsic is an interface, not a promise of one machine instruction. A predic
 ## Account for shared vector and scalar register storage
 
 The eight 128-bit Q registers alias the scalar floating-point S and D registers, so scalar FP temporaries can consume the same physical storage as live MVE vectors. Keep the number of simultaneously live vectors within the available register set and inspect compiler output for spills. Where an instruction supports a vector/scalar operand form, using a scalar general-purpose register can avoid an unnecessary vector duplicate. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 43–44, 151]
+
+## Budget scalar register classes for mixed-width row blocks
+
+When a hand-scheduled matrix loop keeps several output rows active, count general-purpose registers as well as the eight MVE vector registers. For the signed halfword reduction used here, the VMLADAVA.S16 32-bit scalar accumulator is allocated to an even-numbered GPR in the corresponding LLVM MVE encoding. The signed long reduction uses an even/odd GPR pair, so a 64-bit accumulator consumes two GPRs per output row and can reduce the practical row-block size. Check the exact selected instruction and compiler version when lowering the intrinsic. [LLVM ARM MVE instruction definitions](https://github.com/llvm/llvm-project/blob/main/llvm/lib/Target/ARM/ARMInstrMVE.td) [Arm MVE Intrinsics Reference](https://arm-software.github.io/acle/mve_intrinsics/mve.html)
+
+Address-register classes can constrain the same loop. The contiguous signed byte-to-halfword VLDRB.S16 widening-load form uses a low GPR base (r0-r7) in the immediate addressing encoding. This is a form-specific constraint, not a property of every vector load. Confirm that the selected encoding applies and inspect emitted code. Keeping a separate weight pointer per row can exhaust this constrained class quickly. The packed traversal in [Helium matrix kernel layout](../techniques/techniques-helium-matrix-kernel-layout.md) advances one weight pointer across row segments and can reduce that base-pointer demand.
+
+Include input and output pointers, row accumulators, loop controls, temporary addresses, ABI-preserved registers, and any compiler-generated spills in the complete allocation. A low-overhead loop may keep LR live as loop state, and LR also carries the function return address at entry; preserve the applicable calling convention before using it for another purpose. Recheck allocation when changing accumulator width, unroll or row-block size, or surrounding code. Treat row limits as properties of the exact implementation and ABI, not fixed MVE maxima. For accumulator-range choices see [Helium vector reductions](../techniques/techniques-helium-vector-reductions.md). [AAPCS32](https://github.com/ARM-software/abi-aa/blob/main/aapcs32/aapcs32.rst)
 
 ## Make inline-assembly effects visible to the compiler
 

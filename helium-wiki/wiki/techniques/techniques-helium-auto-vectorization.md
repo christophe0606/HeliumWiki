@@ -21,12 +21,16 @@ related:
   - techniques-armv81m-feature-initialization
   - techniques-helium-low-overhead-loop-alignment
   - techniques-helium-instruction-interleaving
+  - techniques-helium-matrix-kernel-layout
+  - techniques-helium-vector-reductions
+  - languages-arm-mve-intrinsics-and-assembly
   - languages-c-float16-half-precision
   - patterns-helium-small-kernel-fusion
 sources:
   - https://support.arm.com/documentation/102095/0101/?lang=en
   - https://llvm.org/docs/Vectorizers.html
   - https://clang.llvm.org/docs/LanguageExtensions.html
+  - https://clang.llvm.org/docs/LanguageExtensions.html#extensions-for-loop-hint-optimizations
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/optimizing_c_functions.md#L24-L116
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L759-L822
@@ -42,6 +46,7 @@ aliases:
   - restrict and vectorization
   - MVE loop layout and data reuse
   - Helium vectorization quality inspection
+  - MVE mixed-width vectorization width
 prerequisites:
   - Compile for a target configuration that implements the intended Helium features.
   - Preserve the program's behavior when changing loop structure or pointer contracts.
@@ -80,6 +85,14 @@ Do not use `restrict` or an independence pragma to conceal a real loop-carried d
 A small helper called from a hot loop can hide operations from the vectorizer. Where inlining preserves behavior and exposes useful work, let the compiler inline it or use a compiler-specific control only after confirming that the call boundary blocks vectorization. The book's `always_inline` suggestion is specific to its compiler context, not a universal requirement; inspect the compiler decision, code growth, and register pressure. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 138–139]
 
 Use `#pragma clang loop vectorize(enable)` to request loop vectorization and `#pragma clang loop interleave(enable)` to request loop interleaving. These are compiler hints: the compiler ignores a hint when the transformation is unsafe and other compiler limits can still prevent a requested transformation. A pragma cannot remove a true loop-carried dependency. The guide marks these as Arm Compiler community features, so verify availability and behavior in the selected toolchain documentation. [Clang Language Extensions, loop hint optimizations](https://clang.llvm.org/docs/LanguageExtensions.html) [LLVM Auto-Vectorization](https://llvm.org/docs/Vectorizers.html) [Coding for Helium v1.1, §6, p. 20](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+## Request a vector width that matches the mixed-width dot step
+
+For a mixed signed 8-bit weight by signed 16-bit input loop, eight signed halfword lanes match one dot-product step. Clang and compatible armclang versions accept a loop hint such as `#pragma clang loop vectorize_width(8)`; the equivalent pragma operator spelling is `_Pragma("clang loop vectorize_width(8)")` when a macro or generated source needs it. Check the selected compiler version and its documentation for support.
+
+The width hint requests eight loop elements per vector group. It does not select how many independent output rows to block together, and it does not request loop interleaving or unrolling; those are separate decisions. A compiler may decline a hint when legality or its implementation limits prevent the transformation. [Clang loop hint optimizations](https://clang.llvm.org/docs/LanguageExtensions.html#extensions-for-loop-hint-optimizations) [LLVM auto-vectorization](https://llvm.org/docs/Vectorizers.html)
+
+Use vectorization remarks and emitted code to verify signed widening loads, the intended halfword reduction, bounded tail handling, and absence of unexpected spills. For a row-blocked kernel, check that one input vector is reused across independent row accumulators rather than reloaded for every row. A width hint cannot repair signed overflow, an invalid aliasing assumption, or an incorrect tail. See [Helium matrix kernel layout](techniques-helium-matrix-kernel-layout.md), [Helium vector reductions](techniques-helium-vector-reductions.md), and [MVE ACLE and assembly contracts](../languages/languages-arm-mve-intrinsics-and-assembly.md) for the arithmetic, register, and ABI contracts.
 
 ## Choose loop layout and reuse deliberately
 

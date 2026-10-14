@@ -8,7 +8,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `techniques-profile-guided-helium-optimization` | [wiki/techniques/techniques-profile-guided-helium-optimization.md](techniques/techniques-profile-guided-helium-optimization.md) | Prioritize hotspots, reassess serial overhead after vectorization and unrolling tradeoffs, isolate hot loops, verify PMU conditions, and profile again after structural changes. |
+| `techniques-profile-guided-helium-optimization` | [wiki/techniques/techniques-profile-guided-helium-optimization.md](techniques/techniques-profile-guided-helium-optimization.md) | Prioritize hotspots, reassess serial overhead and unrolling, distinguish functional from timing-capable models, and verify complete workloads and PMU conditions after structural changes. |
 | `techniques-helium-trace-analysis` | [wiki/techniques/techniques-helium-trace-analysis.md](techniques/techniques-helium-trace-analysis.md) | Capture bounded Cortex-M traces, match executable symbols, align comparable events, and interpret timestamp and sleep limitations. |
 
 ## Compiler configuration and MVE programming contracts
@@ -16,8 +16,8 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | ID | Path | Quick description |
 | --- | --- | --- |
 | `techniques-arm-compiler-mve-target-configuration` | [wiki/techniques/techniques-arm-compiler-mve-target-configuration.md](techniques/techniques-arm-compiler-mve-target-configuration.md) | Match Cortex-M52/M55/M85 Arm Compiler target flags and `__ARM_FEATURE_MVE` bitmap tests to implemented integer MVE, vector floating-point, and scalar floating-point features. |
-| `techniques-helium-auto-vectorization` | [wiki/techniques/techniques-helium-auto-vectorization.md](techniques/techniques-helium-auto-vectorization.md) | Distinguish SLP, loop vectorization, and loop interleaving; use compiler diagnostics, loop layout, operand reuse, and numerical contracts to guide C/C++ changes. |
-| `languages-arm-mve-intrinsics-and-assembly` | [wiki/languages/languages-arm-mve-intrinsics-and-assembly.md](languages/languages-arm-mve-intrinsics-and-assembly.md) | Guard ACLE intrinsic headers and namespaces, inspect generated code, and declare assembly operands and clobbers while preserving register, ABI, and ECI exception-continuation contracts. |
+| `techniques-helium-auto-vectorization` | [wiki/techniques/techniques-helium-auto-vectorization.md](techniques/techniques-helium-auto-vectorization.md) | Distinguish SLP, loop vectorization, and interleaving; verify eight-lane `vectorize_width(8)` hints, operand reuse, generated code, and numerical contracts with compiler diagnostics. |
+| `languages-arm-mve-intrinsics-and-assembly` | [wiki/languages/languages-arm-mve-intrinsics-and-assembly.md](languages/languages-arm-mve-intrinsics-and-assembly.md) | Guard ACLE interfaces and assembly effects; budget VMLADAVA.S16 even-GPR accumulators, long-reduction GPR pairs, and VLDRB.S16 immediate-form low-GPR bases while preserving ABI and ECI contracts. |
 
 ## Runtime feature setup and power control
 
@@ -39,7 +39,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | --- | --- | --- |
 | `languages-c-float16-half-precision` | [wiki/languages/languages-c-float16-half-precision.md](languages/languages-c-float16-half-precision.md) | Choose `_Float16` for suitable numerical ranges and working-set sizes, with compiler support and DSP lane layouts in view. |
 | `techniques-helium-fixed-point-arithmetic` | [wiki/techniques/techniques-helium-fixed-point-arithmetic.md](techniques/techniques-helium-fixed-point-arithmetic.md) | Match Q formats, intermediate widths, top/bottom lanes, conversions, rounding, saturation, and quantized-operator semantics. |
-| `techniques-helium-vector-reductions` | [wiki/techniques/techniques-helium-vector-reductions.md](techniques/techniques-helium-vector-reductions.md) | Match integer, floating-point, and complex Q31 reductions to scalar accumulator and widening semantics, ranges, identities, scaling, component pairing, tail masks, extrema indices, and numeric order. |
+| `techniques-helium-vector-reductions` | [wiki/techniques/techniques-helium-vector-reductions.md](techniques/techniques-helium-vector-reductions.md) | Match integer, floating-point, and complex Q31 reductions to accumulator semantics, full-row mixed-width range bounds, identities, scaling, component pairing, tails, extrema indices, and numeric order. |
 
 ## DSP and matrix kernel layout and fusion
 
@@ -48,8 +48,8 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | `techniques-helium-fir-tap-blocking` | [wiki/techniques/techniques-helium-fir-tap-blocking.md](techniques/techniques-helium-fir-tap-blocking.md) | Study Cortex-M55 FIR lane mappings, coefficient reuse, block-linear history, sample/tap tails, and convolution boundary contracts. |
 | `techniques-helium-fft-butterflies` | [wiki/techniques/techniques-helium-fft-butterflies.md](techniques/techniques-helium-fft-butterflies.md) | Map complex FFT butterflies and permutations to Helium lanes while preserving signs, scaling, output layout, and peak-index association. |
 | `techniques-helium-df1-iir-vectorization` | [wiki/techniques/techniques-helium-df1-iir-vectorization.md](techniques/techniques-helium-df1-iir-vectorization.md) | Study public Cortex-M55 DF1 biquad F32/F16/Q31 layouts, independently derived fourth-order recurrence expansion, and state, bounds, and numerical checks. |
-| `techniques-helium-matrix-kernel-layout` | [wiki/techniques/techniques-helium-matrix-kernel-layout.md](techniques/techniques-helium-matrix-kernel-layout.md) | Reuse inputs across output rows, amortize packing or partial im2col, and map bounded transpose blocks without overwriting unread inputs. |
-| `patterns-helium-small-kernel-fusion` | [wiki/patterns/patterns-helium-small-kernel-fusion.md](patterns/patterns-helium-small-kernel-fusion.md) | Combine short producer/consumer kernels to reuse operands and remove intermediates while preserving numerical, aliasing, and tail contracts. |
+| `techniques-helium-matrix-kernel-layout` | [wiki/techniques/techniques-helium-matrix-kernel-layout.md](techniques/techniques-helium-matrix-kernel-layout.md) | Map signed 8-by-16 matrix-vector dots to eight lanes, reuse inputs across rows, traverse packed weight blocks, amortize packing or partial im2col, and preserve bounded transpose accesses. |
+| `patterns-helium-small-kernel-fusion` | [wiki/patterns/patterns-helium-small-kernel-fusion.md](patterns/patterns-helium-small-kernel-fusion.md) | Fuse producer/consumer kernels and finalize matrix-row bias or scaling after the complete sum, preserving accumulator range, numerical order, aliasing, tails, and register budgets. |
 
 ## Multiword and carryless polynomial arithmetic
 
@@ -86,7 +86,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | ID | Path | Quick description |
 | --- | --- | --- |
 | `techniques-armv8m-cache-management` | [wiki/techniques/techniques-armv8m-cache-management.md](techniques/techniques-armv8m-cache-management.md) | Apply Cortex-M55/M85 Armv8-M cache enable and deactivation ordering and interpret revision-sensitive M55 cache events. |
-| `techniques-cortex-m-data-prefetch-and-cache-hints` | [wiki/techniques/techniques-cortex-m-data-prefetch-and-cache-hints.md](techniques/techniques-cortex-m-data-prefetch-and-cache-hints.md) | Evaluate M52 prefetch inclusion, M55 linear-stream placement, and M85 stream coverage, explicit-prefetch costs, and transient hints. |
+| `techniques-cortex-m-data-prefetch-and-cache-hints` | [wiki/techniques/techniques-cortex-m-data-prefetch-and-cache-hints.md](techniques/techniques-cortex-m-data-prefetch-and-cache-hints.md) | Check M52 prefetch inclusion, M55 r1p1 single-stream prefetch for high-performance M-AXI L1 D-cache and conditional pairing of DTCM inputs with packed weights, and M85 stream coverage, explicit-prefetch costs, and transient hints. |
 
 ## Instruction selection, memory scheduling, and execution overlap
 
