@@ -18,6 +18,7 @@ confidence: inferred
 reproducibility: concept
 related:
   - patterns-cmsis-dsp-helium-migration
+  - techniques-helium-df2t-lane-mapping
   - techniques-helium-instruction-interleaving
   - languages-c-float16-half-precision
 sources:
@@ -38,6 +39,10 @@ aliases:
   - MVE fourth-order DF1 IIR
   - four output recurrence substitution
   - 4x12 IIR coefficient matrix
+  - MVE Q31 DF1 feedback-state semantics
+  - structural zero lanes in recursive SIMD
+  - two cascaded biquads to fourth-order coefficients
+  - IIR section coefficient convolution
 evidence_basis: "CMSIS-DSP v1.18.0 public sources support the second-order DF1 F32/F16/Q31 implementation details and coefficient layouts. The fourth-order 4-by-12 transform is an independent algebraic derivation from the scalar recurrence, not a CMSIS-DSP fourth-order API or a performance result. ACLE documents the four-lane MVE operations used as a conceptual implementation basis."
 ---
 
@@ -89,3 +94,24 @@ For a short final group of `r` outputs, the first `r` rows of the full transform
 The fourth-order row substitution is algebraically equivalent over exact arithmetic. Floating-point reassociation and fused multiply-accumulate can change rounding relative to the scalar evaluation order. Compare results against the chosen reference using nonzero initial state, group boundaries, long runs, the application's coefficient and input ranges, and its error tolerance. A direct fourth-order recurrence and a cascade of second-order sections can have different finite-precision behavior, so evaluate the actual filter rather than assuming equal results. CMSIS-DSP represents higher-order filters as cascaded biquads. As a separate numerical example, [SciPy's `sosfilt`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.sosfilt.html) uses cascaded second-order sections in direct-form-II-transposed form and describes that choice as reducing numerical precision errors for high-order filters; that rationale does not establish which realization is more accurate for a given application. For the public CMSIS-DSP representation, see [Biquad Cascade DF1](https://arm-software.github.io/CMSIS-DSP/latest/group__BiquadCascadeDF1.html).
 
 For current CMSIS-DSP initialization and modified-coefficient storage, see [CMSIS-DSP Helium migration](../patterns/patterns-cmsis-dsp-helium-migration.md).
+
+## Choose a lane mapping that matches the recurrence dependencies
+
+The four-output expansion above substitutes within-group output dependencies, allowing that group to be accumulated across output lanes. Feedback from the group remains in the history used by the next group, and structural zero coefficients still occupy vector positions without contributing products. When additional independent work is available, map separate channels or suitably delayed and pipelined cascade-stage work to lanes; consecutive cascade stages processing the same sample remain dependent. Choose among these mappings based on available work and the state and layout costs. The public CMSIS-DSP DF1 kernels provide the release-specific implementation baseline; a custom lane mapping is a separate implementation choice. See [DF2T channel and delayed-stage lane mappings](techniques-helium-df2t-lane-mapping.md) for those alternatives.
+
+The Q31 DF1 kernel uses staged vector dot products but reinjects each computed, scaled output into the feedback state before calculating the next output. Its 64-bit accumulation, configured shift, high-half extraction, and sequential state update are part of the fixed-point behavior. Do not transfer the floating-point coefficient-substitution transformation mechanically to Q31 or reorder its operations as if it were an exact floating-point recurrence. Preserve the selected kernel's scaling and feedback contract, and validate any changed operation order against the public implementation and application error bounds. An instruction's rounding name does not by itself specify the full routine's saturation or rounding behavior.
+
+## Optionally convert two cascaded biquads to a fourth-order recurrence
+
+When an implementation deliberately combines two fixed-coefficient biquad stages, derive the fourth-order coefficients from the transfer-function product and keep the sign convention explicit. For stage numerators `Bp(z)=bp0+bp1*z^-1+bp2*z^-2` and `Bq(z)=bq0+bq1*z^-1+bq2*z^-2`, the product numerator coefficients are `b[k]=sum(j=max(0,k-2)..min(2,k), bp[j]*bq[k-j])` for `k=0..4`. With positive-feedback recurrence coefficients, write the denominators as `Dp(z)=1-ap1*z^-1-ap2*z^-2` and `Dq(z)=1-aq1*z^-1-aq2*z^-2`. Their product, represented as `1-a1*z^-1-a2*z^-2-a3*z^-3-a4*z^-4`, gives:
+
+```text
+a1 = ap1 + aq1
+a2 = ap2 + aq2 - ap1*aq1
+a3 = -(ap1*aq2 + ap2*aq1)
+a4 = -ap2*aq2
+```
+
+This is a coefficient conversion for an optional realization change. It is exact for zero initial state in exact arithmetic; it does not convert the two stages' nonzero internal histories into direct-form fourth-order state. A correct state mapping is required when preserving nonzero history, so copying the two biquads' state values into the direct recurrence is invalid. CMSIS-DSP v1.18.0 documents cascaded biquad processing rather than a public direct fourth-order function; retain the selected public kernel as the baseline. Recheck coefficient quantization, finite-precision behavior, overflow limits, and stability of the realized filter before adopting a transformed implementation. See [CMSIS-DSP Biquad Cascade DF1](https://arm-software.github.io/CMSIS-DSP/latest/group__BiquadCascadeDF1.html) and [SciPy `sosfilt`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.sosfilt.html) for public second-order-section context.
+
+The four-output fourth-order expansion above forms twelve coefficient vectors from eight input positions (four prior inputs and four current inputs) and four output-history values. The MVE vector-register budget cannot hold all twelve vectors at once. Keep coefficient vectors streamed through the loop and schedule their loads among independent multiply/FMA work only where the target permits; this trades coefficient traffic against live-register pressure. When the coefficients are fixed, build the transformed coefficient layout outside the sample loop and rebuild it when the coefficients change. Do not infer a speed advantage from the algebraic conversion or from reducing structural zero terms.

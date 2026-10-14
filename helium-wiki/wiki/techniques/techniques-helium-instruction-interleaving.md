@@ -30,6 +30,7 @@ related:
   - patterns-helium-small-kernel-fusion
   - techniques-helium-vector-reductions
   - techniques-helium-predication-and-tail-handling
+  - techniques-helium-df2t-lane-mapping
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-why-not-just-add-neon
@@ -40,6 +41,8 @@ sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q15.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f32.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df2T_f32.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df2T_init_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/ComplexMathFunctions/arm_cmplx_mult_cmplx_f32.c
   - https://arm-software.github.io/acle/mve_intrinsics/mve.html
@@ -67,7 +70,11 @@ aliases:
   - dependent MVE load/MAC overlap
   - cross-iteration load and MAC overlap
   - loop backedge scheduling
-evidence_basis: "Processor pipeline and instruction characteristics are source-reported in the linked public guides. CMSIS-DSP v1.18.0 links corroborate FIR and biquad implementation examples. The fourth-order recurrence register-footprint example is independently derived; ACLE documents its vector operations and lane transfers."
+  - recursive biquad register scheduling
+  - MVE recursive feedback register rotation
+  - stream biquad coefficient vectors
+  - recursive kernel live vector budget
+evidence_basis: "Processor pipeline and instruction characteristics are source-reported in the linked public guides. CMSIS-DSP v1.18.0 links corroborate FIR and biquad implementation examples. The fourth-order recurrence register-footprint example is independently derived; ACLE documents its vector operations and lane transfers. The recursive biquad register-role discussion is an independently derived scheduling concept and does not replace the source-reported core rules."
 ---
 
 Use this page when scheduling MVE instructions on Cortex-M52 r0p3, Cortex-M55 r1p1, or Cortex-M85 r1p0. Each core has different tick models, execution pipes, and overlap limits; follow the matching core-specific section and preserve dependencies. The source-reported schedules describe processor behavior; they do not predict application performance by themselves.
@@ -253,3 +260,13 @@ For independent vector groups, interleave useful loads and arithmetic so later o
 For an exact in-place gain-and-energy pass, load both current vectors before the first store when those reads are valid. Retain the second vector while the first is gained, stored, and accumulated, then process the retained vector. This can separate a store from a later read, but it does not remove a true same-address dependency. See [small-kernel fusion](../patterns/patterns-helium-small-kernel-fusion.md) for the arithmetic and [vector reductions](techniques-helium-vector-reductions.md) for the final reduction.
 
 Make the loop entry and drain explicit. Do not preload from an empty input or past the final valid vector, and handle a count smaller than the unrolled block or a remainder that does not fill it. The public [CMSIS-DSP complex multiplication implementation](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/ComplexMathFunctions/arm_cmplx_mult_cmplx_f32.c) is a complete reference for its own full blocks and complex tail handling. Partial assembly listings without complete operand constraints, modified-base declarations, and clobbers are not callable implementations; preserve the ABI and bounds in any replacement.
+
+## Schedule recursive biquad work while preserving state
+
+The register-role rotation below is a derived dataflow and allocation concept; it does not add to or replace the source-reported core-specific timing rules above. Recursive kernels expose two different kinds of work. Outputs from one recurrence still depend on earlier outputs across group boundaries; unrolling that chain does not remove the feedback dependency. Independent channel recurrences, or cascade-stage work deliberately delayed across ticks, can provide separate chains to interleave. See [DF2T lane mapping](techniques-helium-df2t-lane-mapping.md) and [DF1 recurrence vectorization](techniques-helium-df1-iir-vectorization.md) for the state and sample mappings that make those dependencies explicit.
+
+When unrolling independent work, assign the live `d1`/`d2` values and partial results to registers according to their actual use order. A register-role rotation can keep each newly computed logical state in the register selected for the next unrolled body, avoiding copies back to fixed register names when the dataflow permits it. Keep each old state available through its final use, and establish the canonical state values for loop exits, tails, call boundaries, and stored state. Register renaming is a scheduling choice; it does not change the recurrence or make dependent outputs independent.
+
+Budget the complete live vector set. MVE has eight Q registers, shared by state vectors, input and output vectors, coefficient vectors, partial accumulators, and shift temporaries. Budget the scalar carry word, input scalars, pointers, and loop controls separately in general-purpose registers. The DF1 four-output transform has twelve coefficient vectors, so holding every coefficient vector at once exceeds that register file. Streaming coefficients shortens their live ranges but adds loads; interleave a load with independent FMA work only when the selected core and memory path permit it. Count spills, reloads, register moves, state stores, and tail cleanup in the complete implementation.
+
+Inspect generated assembly for spills, state-copy moves, coefficient traffic, fused-operation order, unrolled cleanup, and entry/exit handling. Compare compiler and library paths before choosing intrinsics or assembly, and keep a custom schedule only when it meets the application's numerical and performance contract on its target. Do not transfer an instruction order from a different vector ISA or core as a portable schedule. The public [CMSIS-DSP v1.18.0 DF2T kernel](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df2T_f32.c) is a release-specific implementation reference, not a universal register schedule.

@@ -204,9 +204,22 @@ techniques-helium-df1-iir-vectorization:
 - four output recurrence substitution
 - fourth-order IIR SIMD expansion
 - Helium DF1 biquad vectorization
+- IIR section coefficient convolution
 - MVE fourth-order DF1 IIR
+- MVE Q31 DF1 feedback-state semantics
 - MVE recursive biquad coefficient layout
+- structural zero lanes in recursive SIMD
 - techniques-helium-df1-biquad-vectorization
+- two cascaded biquads to fourth-order coefficients
+techniques-helium-df2t-lane-mapping:
+- DF2T cascade startup and drain
+- DF2T per-channel vector state
+- four-stage DF2T delayed-sample lane mapping
+- Helium DF2T delayed-stage pipeline
+- Helium DF2T independent-channel vectorization
+- MVE four-channel biquad lanes
+- VSHLC biquad cascade lane shift
+- VSHLC whole-vector sample pipeline
 techniques-helium-fft-butterflies:
 - CFFT radix 2 radix 4 MVE
 - Helium FFT butterflies
@@ -246,6 +259,10 @@ techniques-helium-instruction-interleaving:
 - M55 two-vector gain scheduling
 - MVE instruction interleaving
 - MVE operand reuse across independent outputs
+- MVE recursive feedback register rotation
+- recursive biquad register scheduling
+- recursive kernel live vector budget
+- stream biquad coefficient vectors
 techniques-helium-low-overhead-loop-alignment:
 - Helium loop alignment
 - low-overhead loop alignment
