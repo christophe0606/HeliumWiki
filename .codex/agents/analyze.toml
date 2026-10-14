@@ -45,8 +45,9 @@ If the title must be changed, the id of the page must also be updated to reflect
 
 The markdown must start, after the yaml header, with a short paragraph that describes when the optimization guideline should be applied and what problem it solves.
 
-Don't leave in the generated wiki page reference to local documents that won't be available to the user of the skill.  
-Only references acceptable are URL and names of official public documents.
+Don't leave, in the generated wiki pages, references to local documents that won't be available to the user of the skill.  Only references acceptable are URL and names of official public documents.
+Don't talk about documents that are not available. Don't use wording like : the guide, the tutorial etc ... except if a link to the public source is available and that it is clear from context what "the" is refering to.
+If "the" is not clear from the context, write the sentence differently.
 
 The markdown MUST NOT contain any customer or partner proprietary information.
 
