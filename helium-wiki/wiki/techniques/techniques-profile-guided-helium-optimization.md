@@ -23,11 +23,14 @@ related:
   - techniques-helium-predication-and-tail-handling
   - techniques-helium-instruction-interleaving
   - techniques-helium-matrix-kernel-layout
+  - techniques-cortex-m-data-prefetch-and-cache-hints
+  - patterns-helium-dtcm-dma-pipeline
 sources:
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L88-L198
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L868-L1018
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L1286-L1336
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
+  - https://documentation-service.arm.com/static/63190fc5ce77a54a32db3ac2
   - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel
   - https://www.arm.com/products/development-tools/simulation/fast-models
   - https://developer.arm.com/community/arm-community-blogs/b/tools-software-ides-blog/posts/using-arm-models-to-compare-compiler-performance
@@ -38,6 +41,8 @@ aliases:
   - scalar loop overhead after Helium vectorization
   - Amdahl's law and loop-control overhead
   - Fast Models versus Cycle Models for MVE evaluation
+  - memory-bound dense kernel diagnosis
+  - Cortex-M55 cache refill and demand-miss profiling
 prerequisites:
   - Use a representative application build and workload.
   - Select an active profiler, trace source, or simulator that supports the target.
@@ -50,6 +55,16 @@ Use profiling to select implementation work from the application's current bottl
 Capture a representative workload and identify which application stages currently account for the work of interest. Prefer a low-risk library substitution or data-placement change when it addresses the hotspot. After every structural change, profile the complete application again because the relative cost of DSP frontend, NN backend, and accelerator work can shift.
 
 Active profiling can use markers, timestamps, PMU samples, or RTOS and stream-node transitions. It may require source instrumentation or a rebuild, and instrumentation can perturb execution. Passive profiling uses supported hardware or simulator trace features, such as ETM-based tools or model trace plugins, and can reduce source changes; its availability depends on the target, probe, model, and tool version. Choose the method that can observe the relevant workload with enough context.
+
+## Diagnose memory-bound dense kernels
+
+Compare scalar and Helium row-group candidates with the same matrix, input, placement, and system configuration. Include both cold-start and representative steady-state or full-application behavior when those cases matter. Distinguish a repeatedly reused input from weights consumed once: warming the input does not imply that a large weight matrix is resident. Include any packing, staging, tails, output stores, and finalization in the workload being assessed.
+
+Separate core instruction and load demand from weight-linefill delivery. When external-memory supply dominates, reducing arithmetic or repeated input loads may leave much of the wait unchanged; a smaller arithmetic loop is not proof that the memory bottleneck moved. A compact hot instruction body can coexist with costly data traffic, so verify instruction-side cache behavior rather than assuming it. Evaluate cache placement, hardware or software prefetch, and DMA staging under representative cache state and complete-application activity, including possible eviction of other useful data.
+
+On Cortex-M55 r1p1, use available PMU events for cache access, refill, read-miss, and frontend or backend stall observations only according to the TRM event definitions. A refill event is not a literal count of external bus transfers and must not be substituted for a demand-read-miss event. Likewise, a prefetch request or detected stream does not prove that a line arrived before consumption. Select matching event scopes and corroborate them with the workload behavior. [Arm Cortex-M55 Processor Technical Reference Manual, r1p1, Issue 02, §17.2, pp. 266–267](https://documentation-service.arm.com/static/63190fc5ce77a54a32db3ac2)
+
+A timing-capable model can help only when its configured scope represents the cache, memory latency and bandwidth, outstanding-request limits, DMA reachability, and relevant arbitration of the system under study. Otherwise, treat its result as incomplete evidence and use the target or a model with the required components. Recheck the complete application after each change, since a kernel optimization can alter both the memory pressure and other users’ cache residency.
 
 ## Reassess serial loop work after vectorization
 

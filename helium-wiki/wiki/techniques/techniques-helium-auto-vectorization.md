@@ -41,6 +41,7 @@ sources:
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://github.com/ARM-software/CMSIS-DSP/tree/v1.18.0/Source/FilteringFunctions
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c
+  - https://arm-software.github.io/acle/mve_intrinsics/mve.html
 aliases:
   - Helium SLP loop vectorization and interleaving
   - clang loop vectorization hints
@@ -53,6 +54,8 @@ aliases:
   - MVE mixed-width vectorization width
   - Clang vectorize_predicate loop hint
   - MVE F16 vectorization inspection
+  - MVE byte dot vectorize_width 16
+  - byte dot signedness and row grouping
 prerequisites:
   - Compile for a target configuration that implements the intended Helium features.
   - Preserve the program's behavior when changing loop structure or pointer contracts.
@@ -97,6 +100,10 @@ Use `#pragma clang loop vectorize(enable)` to request loop vectorization and `#p
 For a mixed signed 8-bit weight by signed 16-bit input loop, eight signed halfword lanes match one dot-product step. Clang and compatible armclang versions accept a loop hint such as `#pragma clang loop vectorize_width(8)`; the equivalent pragma operator spelling is `_Pragma("clang loop vectorize_width(8)")` when a macro or generated source needs it. Check the selected compiler version and its documentation for support.
 
 The width hint requests eight loop elements per vector group. It does not select how many independent output rows to block together, and it does not request loop interleaving or unrolling; those are separate decisions. A compiler may decline a hint when legality or its implementation limits prevent the transformation. [Clang loop hint optimizations](https://clang.llvm.org/docs/LanguageExtensions.html#extensions-for-loop-hint-optimizations) [LLVM auto-vectorization](https://llvm.org/docs/Vectorizers.html)
+
+For a direct byte-element dot loop, `vectorize_width(16)` requests sixteen logical byte iterations in a vector group; it does not request sixteen output rows or sixteen halfword-expanded weights. This differs from a signed-byte by signed-halfword widening dot, whose step consumes eight halfword lanes, and from an F16 dot, which also uses eight halfword lanes. Treat each width as a compiler request and confirm the selected compiler’s remarks and emitted loop.
+
+For byte dots, inspect operand signedness, any sign extension, reduction signedness and accumulator range, and input-offset semantics. A vectorized unsigned-byte operation is not automatically equivalent to a signed-byte dot routine. When independent output rows are grouped, the vector width applies within the row’s column loop; handle incomplete row groups separately from incomplete column vectors, and accumulate the full row before bias, requantization, and store. Keep all bounds and any `restrict` promise valid. See [Helium matrix kernel layout](techniques-helium-matrix-kernel-layout.md) for the row, column, and arithmetic contracts.
 
 Use vectorization remarks and emitted code to verify signed widening loads, the intended halfword reduction, bounded tail handling, and absence of unexpected spills. For a row-blocked kernel, check that one input vector is reused across independent row accumulators rather than reloaded for every row. A width hint cannot repair signed overflow, an invalid aliasing assumption, or an incorrect tail. See [Helium matrix kernel layout](techniques-helium-matrix-kernel-layout.md), [Helium vector reductions](techniques-helium-vector-reductions.md), and [MVE ACLE and assembly contracts](../languages/languages-arm-mve-intrinsics-and-assembly.md) for the arithmetic, register, and ABI contracts.
 

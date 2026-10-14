@@ -27,12 +27,15 @@ related:
   - languages-arm-mve-intrinsics-and-assembly
   - patterns-cmsis-dsp-helium-migration
   - languages-c-float16-half-precision
+  - techniques-profile-guided-helium-optimization
 sources:
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://github.com/ARM-software/CMSIS-DSP/tree/v1.18.0/Source/MatrixFunctions
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_q15.c
   - https://arm-software.github.io/acle/mve_intrinsics/mve.html
+  - https://arm-software.github.io/acle/main/acle.html#parallel-16-bit-multiplication
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c
+  - https://documentation-service.arm.com/static/63190fc5ce77a54a32db3ac2
 aliases:
   - MVE matrix row blocking
   - Helium matrix-vector row reuse
@@ -44,6 +47,9 @@ aliases:
   - Helium matrix-vector block-interleaved weights
   - Helium F16 dense matrix-vector row blocking
   - MVE F16 dense layer input reuse
+  - Cortex-M55 dense weight refill demand
+  - Helium packed byte and F16 weight formats
+  - scalar DSP pre-expanded byte input fallback
 prerequisites:
   - Confirm matrix dimensions, row/column layout, element type, numeric scaling, and source/destination overlap requirements.
   - Check the selected CMSIS-DSP release for a matching public matrix routine before maintaining a custom kernel.
@@ -65,7 +71,9 @@ Choose the row-group size from the live vector set, independent row accumulators
 
 For a row group g, column block b, local row r, and lane k, define the packed weight order as P[g,b,r,k] = W[gU+r, bB+k], where B is the number of weights consumed by one dot step and k ranges from 0 to B-1. Flatten in the order g, b, r, k; with the eight-lane signed-halfword dot step above, B = 8. Thus one column block stores the eight weight bytes for row 0, then row 1, through the valid rows in the group; the next block follows those row segments. Reuse the same input segment across those row segments. A packed-weight pointer can advance through this stream instead of maintaining a separate matrix pointer for every row. If storage reserves slots for an incomplete final row group, allocate those slots explicitly and never load an invalid row.
 
-This is row-block interleaving and traversal reordering; the logical operation remains y = W x. If the packed storage uses 16-byte weight blocks, traverse each storage block as two corresponding eight-lane dot steps; B remains the number of weights consumed by one dot step.
+This is row-block interleaving and traversal reordering; the logical operation remains y = W x. Define B as the number of logical weight elements consumed by one dot step, independently of the storage block size: a direct byte-element dot can use B = 16, while an eight-lane halfword operation uses B = 8. The existing signed-byte by signed-halfword operation also uses B = 8 because each weight is widened to a halfword lane. A 16-byte row segment holds one 16-element byte step or one eight-element F16 step. If a widening-byte kernel instead stores sixteen weights per row segment, consume that segment as two eight-lane steps using the corresponding two input halves, then advance to the next row segment. Load those input halves once for the row group when the live-register budget permits. This sixteen-weight storage grouping differs from the B = 8 packing order above; producer and consumer must agree on which column-block and row order the format uses.
+
+Applying the same index identity to F16 is a derived custom packed layout; the public CMSIS-DSP [F16 matrix-vector routine](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c) uses row-major weights and does not consume that packed format.
 
 A linear weight stream may simplify base-pointer state and improve sequential locality, including when weights reside in DTCM; it is not only a prefetch transformation. Evaluate placement and the actual cache or TCM path, and consider a DMA-to-DTCM pipeline where the system and reuse justify it. Pack static weights offline, or amortize online packing over enough calls to cover its transform work, scratch storage, and maintained layout contract. See [Cortex-M data prefetch and cache hints](techniques-cortex-m-data-prefetch-and-cache-hints.md), [DTCM and DMA pipeline](../patterns/patterns-helium-dtcm-dma-pipeline.md), and [DTCM bank access guidance](../hardware/hardware-dtcm-scatter-gather-banks.md).
 
@@ -78,6 +86,18 @@ For an integer matrix-vector kernel with a matching scalar-result reduction, loa
 For a quantized NN matrix kernel, reuse each loaded input vector across independent output-row dot products and interleave independent matrix loads and multiply-accumulates when the selected target permits it. Keep row accumulators within the chosen kernel's width and range, and preserve its input offsets, bias handling, row and column tails, and final output scaling. The book's load/MAC schedule is an implementation example; confirm dependencies and generated code on the target rather than assuming a universal schedule. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF p. 221]
 
 Floating-point row blocks also need independent accumulators for each output. Lane-wise partial sums require a final reduction, and changing their association must fit the numerical contract; see [Helium vector reductions](techniques-helium-vector-reductions.md).
+
+## Match row reuse to weight delivery
+
+Row blocking reduces repeated input reads; it does not reduce the number of matrix weights that must be fetched. When weights are used once from cacheable main memory, processing more rows per input segment can let the core consume weights faster and expose linefill supply as the limiting part of the loop. A schedule that works well with weights in TCM may behave differently when those weights stream through the cache and external memory.
+
+Choose the row group with the real memory path and a representative workload. Inspect core load and multiply-accumulate scheduling, live registers and spills, weight linefill demand, and prefetch coverage as separate factors. A smaller group can be appropriate when memory delivery cannot sustain a larger group; no one group size is optimal across placements. See [Cortex-M data prefetch and cache hints](techniques-cortex-m-data-prefetch-and-cache-hints.md) and [profile-guided Helium optimization](techniques-profile-guided-helium-optimization.md).
+
+## Optional scalar DSP fallback with pre-expanded inputs
+
+On a target with the Arm DSP paired signed-halfword multiply-accumulate operation, a scalar fallback can keep matrix weights as signed bytes and convert a reusable input vector to signed halfwords once. Pair adjacent weights and inputs in the same order, sign-extend each byte correctly, and use the paired operation only when the target supports its ACLE interface. The ACLE `__smlad` operation adds two signed halfword products to a 32-bit accumulator without saturation, so prove the accumulator range or use a wider accumulation strategy. Do not treat byte selection or packing helpers as an automatic adjacent-pair conversion. [ACLE, Parallel 16-bit multiplication](https://arm-software.github.io/acle/main/acle.html#parallel-16-bit-multiplication)
+
+Pre-expansion moves conversion work out of repeated row dot products, but it adds setup work, workspace, and input traffic; the expanded input uses twice the storage of the byte input. Include those costs when comparing the fallback with direct MVE processing, and retain it only when reuse and the memory path justify its representation. Preserve pair order, input offsets and scaling, odd-column cleanup, zero-length behavior, and the selected operation’s arithmetic range. This is an optional custom fallback format, not a CMSIS-DSP ABI or a replacement for a quantized operator’s numerical contract.
 
 ## Reuse F16 inputs across dense output rows
 

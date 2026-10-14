@@ -21,6 +21,7 @@ related:
   - hardware-dtcm-scatter-gather-banks
   - patterns-helium-dtcm-dma-pipeline
   - techniques-helium-matrix-kernel-layout
+  - techniques-profile-guided-helium-optimization
 sources:
   - https://support.arm.com/documentation/107950/0100
   - https://support.arm.com/documentation/107730/0003
@@ -37,6 +38,8 @@ aliases:
   - Cortex-M55 linear-stream data prefetch
   - Cortex-M52 PREFETCH availability by revision
   - Cortex-M55 packed matrix weights and DTCM input
+  - Cortex-M55 PLD prefetch distance and cache pollution
+  - M55 weight stream delivery and lookahead
 evidence_basis: M52 r0p3 reports conditional hardware-prefetch inclusion and PFCR control; M85 r1p0 reports separate stream coverage, hint, and transient replacement behavior. The Cortex-M55 r1p1 Issue 02 TRM documents one prefetch-supported data stream for its high-performance M-AXI L1 D-cache configuration, with unrelated normal linefills allowed alongside it. The packed-weight and DTCM-input placement example is a conditional implementation inference and carries no measured-gain claim. Any cache-use advice is core-scoped and source-reported or explicitly identified as inference.
 ---
 
@@ -84,5 +87,9 @@ The processor-specific source describes Cortex-M55 recognition of constant strid
 When a kernel uses several streams, evaluate whether the stream intended for cache prefetch remains in cacheable main memory while other streams use an appropriate TCM or noncacheable region. This is a workload experiment, not a general placement rule: TCM capacity, DMA reachability, cache behavior, and memory ownership still apply. Sequential cached access may work well without copying every input to DTCM, so compare the actual memory paths and working set before consuming scarce TCM.
 
 For a matrix-vector loop that reuses one input vector across several output rows, a useful Cortex-M55 placement hypothesis is to put the repeatedly reused input vector in DTCM when it fits and the system permits, while packing the row-blocked weights into one sequential stream in cacheable main memory. With row-major weights and independent row bases, a blocked loop touches several weight streams; the packed layout described in [Helium matrix kernel layout](techniques-helium-matrix-kernel-layout.md) lets one weight pointer advance through adjacent row segments for each shared input segment. The DTCM input keeps its repeated reads off the cacheable weight stream, leaving the matrix traversal as the kernel's intended prefetch-supported stream in the documented configuration. Account for the 8 KB prefetch-granule boundary when evaluating longer weight streams. This is a conditional layout inference from the documented prefetch scope, not a performance guarantee or a rule for every Cortex-M55 integration. Include packing and memory placement in the complete workload assessment, and use the [DTCM and DMA pipeline](../patterns/patterns-helium-dtcm-dma-pipeline.md) guidance for transfer reachability, ownership, completion, and cache visibility if DMA stages the weights.
+
+A single prefetch-tracked stream does not restrict all ordinary data linefills: unrelated linefills can coexist, but a row-major loop with several independent weight bases does not make those bases one prefetch stream. Packing can give the kernel one sequential weight traversal. A detected stream or issued prefetch request does not prove that the needed line arrived before the load or that it was useful; assess delivery and consumer stalls in the full access pattern. The M55 TRM describes dynamic lookahead as a balance among residual miss latency, external bandwidth, cache eviction, spurious fetches and power, and delaying unrelated fills after a stream ends. [Arm Cortex-M55 Processor Technical Reference Manual, r1p1, Issue 02, §10.4.1.2, p. 177](https://documentation-service.arm.com/static/63190fc5ce77a54a32db3ac2)
+
+Treat an explicit `PLD` hint on Cortex-M55 as a measured workload experiment after checking its supported semantics in the matching TRM. A hint adds instructions and can add demand to the shared memory path; its distance must match the loop’s consumption rate, and hinting several row streams does not overcome a saturated memory path. Compare the complete implementation with and without hints, including effects on other cache users. Repeated reads of a cache-resident input still use cache resources; register reuse or DTCM placement may reduce that demand when the capacity and system mapping allow, but does not guarantee a prefetch benefit. Do not apply a universal hint distance or expect a fixed gain. [Arm Cortex-M55 Processor Technical Reference Manual, r1p1, Issue 02, §§10.4.1–10.4.1.2, pp. 175–177](https://documentation-service.arm.com/static/63190fc5ce77a54a32db3ac2)
 
 Keep the M52 revision-specific information already recorded above. The memory article says M52 revision 0 lacks data prefetch, while the M52 r0p3 guide records conditional `PREFETCH` inclusion. Check the device's exact revision and integration against its matching documentation; these sources do not justify a blanket claim about every M52 implementation. The M85 next-line and transient-hint behavior remains in the M85 sections and should not be inferred for M55. See [TCM workspaces and DMA pipelines](../patterns/patterns-helium-dtcm-dma-pipeline.md) when deciding which buffers should occupy TCM.

@@ -8,7 +8,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `techniques-profile-guided-helium-optimization` | [wiki/techniques/techniques-profile-guided-helium-optimization.md](techniques/techniques-profile-guided-helium-optimization.md) | Prioritize hotspots, reassess serial overhead and unrolling, distinguish functional from timing-capable models, and verify complete workloads and PMU conditions after structural changes. |
+| `techniques-profile-guided-helium-optimization` | [wiki/techniques/techniques-profile-guided-helium-optimization.md](techniques/techniques-profile-guided-helium-optimization.md) | Prioritize hotspots, diagnose dense-kernel memory limits, interpret refill and demand-miss events, match model scope to the memory system, and reassess serial overhead, unrolling, and complete workloads after structural changes. |
 | `techniques-helium-trace-analysis` | [wiki/techniques/techniques-helium-trace-analysis.md](techniques/techniques-helium-trace-analysis.md) | Capture bounded Cortex-M traces, match executable symbols, align comparable events, and interpret timestamp and sleep limitations. |
 
 ## Compiler configuration and MVE programming contracts
@@ -16,7 +16,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | ID | Path | Quick description |
 | --- | --- | --- |
 | `techniques-arm-compiler-mve-target-configuration` | [wiki/techniques/techniques-arm-compiler-mve-target-configuration.md](techniques/techniques-arm-compiler-mve-target-configuration.md) | Match Cortex-M52/M55/M85 Arm Compiler target flags and `__ARM_FEATURE_MVE` bitmap tests to implemented integer MVE, vector floating-point, and scalar floating-point features. |
-| `techniques-helium-auto-vectorization` | [wiki/techniques/techniques-helium-auto-vectorization.md](techniques/techniques-helium-auto-vectorization.md) | Distinguish SLP, loop vectorization, and interleaving; verify eight-lane width hints, operand reuse, F16 emitted code, and version-specific tail-predication experiments against compiler diagnostics and numerical contracts. |
+| `techniques-helium-auto-vectorization` | [wiki/techniques/techniques-helium-auto-vectorization.md](techniques/techniques-helium-auto-vectorization.md) | Distinguish SLP, loop vectorization, and interleaving; match sixteen byte elements or eight halfword lanes to dot signedness, then verify operand reuse, F16 code, tail policy, and numerical contracts with compiler diagnostics. |
 | `languages-arm-mve-intrinsics-and-assembly` | [wiki/languages/languages-arm-mve-intrinsics-and-assembly.md](languages/languages-arm-mve-intrinsics-and-assembly.md) | Guard ACLE interfaces and assembly effects; budget F16 Q-register row accumulators, VMLADAVA.S16 even-GPR accumulators, long-reduction GPR pairs, and VLDRB.S16 immediate-form low-GPR bases while preserving ABI and ECI contracts. |
 
 ## Runtime feature setup and power control
@@ -48,7 +48,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | `techniques-helium-fir-tap-blocking` | [wiki/techniques/techniques-helium-fir-tap-blocking.md](techniques/techniques-helium-fir-tap-blocking.md) | Study Cortex-M55 FIR lane mappings, coefficient reuse, block-linear history, sample/tap tails, and convolution boundary contracts. |
 | `techniques-helium-fft-butterflies` | [wiki/techniques/techniques-helium-fft-butterflies.md](techniques/techniques-helium-fft-butterflies.md) | Map complex FFT butterflies and permutations to Helium lanes while preserving signs, scaling, output layout, and peak-index association. |
 | `techniques-helium-df1-iir-vectorization` | [wiki/techniques/techniques-helium-df1-iir-vectorization.md](techniques/techniques-helium-df1-iir-vectorization.md) | Study public Cortex-M55 DF1 biquad F32/F16/Q31 layouts, independently derived fourth-order recurrence expansion, and state, bounds, and numerical checks. |
-| `techniques-helium-matrix-kernel-layout` | [wiki/techniques/techniques-helium-matrix-kernel-layout.md](techniques/techniques-helium-matrix-kernel-layout.md) | Reuse inputs across F16 dense rows and eight-lane signed 8-by-16 matrix-vector dots; budget row groups, traverse packed integer weight blocks, amortize packing or partial im2col, and preserve bounded transpose accesses. |
+| `techniques-helium-matrix-kernel-layout` | [wiki/techniques/techniques-helium-matrix-kernel-layout.md](techniques/techniques-helium-matrix-kernel-layout.md) | Reuse inputs across F16 and signed 8-by-16 rows, balance row groups against refill demand, preserve packed byte/F16 producer-consumer formats, evaluate scalar input pre-expansion, amortize packing or partial im2col, and bound transpose accesses. |
 | `patterns-helium-small-kernel-fusion` | [wiki/patterns/patterns-helium-small-kernel-fusion.md](patterns/patterns-helium-small-kernel-fusion.md) | Fuse producer/consumer kernels, finalize matrix-row bias or scaling after complete reductions including F16 rows, and hoist shared exponential output work while preserving accumulator range, numerical order, aliasing, tails, and register budgets. |
 
 ## Multiword and carryless polynomial arithmetic
@@ -78,7 +78,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `patterns-helium-dtcm-dma-pipeline` | [wiki/patterns/patterns-helium-dtcm-dma-pipeline.md](patterns/patterns-helium-dtcm-dma-pipeline.md) | Prioritize critical TCM working sets and stage streaming data with explicit CPU/DMA ownership, reachability checks, and conditional overlap. |
+| `patterns-helium-dtcm-dma-pipeline` | [wiki/patterns/patterns-helium-dtcm-dma-pipeline.md](patterns/patterns-helium-dtcm-dma-pipeline.md) | Prioritize critical TCM working sets and stage streaming inputs or dense weight row groups with explicit CPU/DMA ownership, capacity and reachability checks, and conditional transfer overlap. |
 | `techniques-cache-dma-buffer-visibility` | [wiki/techniques/techniques-cache-dma-buffer-visibility.md](techniques/techniques-cache-dma-buffer-visibility.md) | Choose cache policy and clean CPU-written output at DMA ownership boundaries with the required visibility, ordering, and synchronization. |
 
 ## Cache control, streaming, and prefetch
@@ -86,7 +86,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | ID | Path | Quick description |
 | --- | --- | --- |
 | `techniques-armv8m-cache-management` | [wiki/techniques/techniques-armv8m-cache-management.md](techniques/techniques-armv8m-cache-management.md) | Apply Cortex-M55/M85 Armv8-M cache enable and deactivation ordering and interpret revision-sensitive M55 cache events. |
-| `techniques-cortex-m-data-prefetch-and-cache-hints` | [wiki/techniques/techniques-cortex-m-data-prefetch-and-cache-hints.md](techniques/techniques-cortex-m-data-prefetch-and-cache-hints.md) | Check M52 prefetch inclusion, M55 r1p1 single-stream prefetch for high-performance M-AXI L1 D-cache and conditional pairing of DTCM inputs with packed weights, and M85 stream coverage, explicit-prefetch costs, and transient hints. |
+| `techniques-cortex-m-data-prefetch-and-cache-hints` | [wiki/techniques/techniques-cortex-m-data-prefetch-and-cache-hints.md](techniques/techniques-cortex-m-data-prefetch-and-cache-hints.md) | Check M52 prefetch inclusion, M55 r1p1 single-stream coverage, packed weights with DTCM inputs, lookahead and PLD costs or cache pollution, and M85 stream coverage, explicit-prefetch costs, and transient hints. |
 
 ## Instruction selection, memory scheduling, and execution overlap
 
