@@ -19,8 +19,10 @@ related:
   - techniques-cortex-m85-memory-access-scheduling
   - techniques-helium-predication-and-tail-handling
 sources:
+  - https://support.arm.com/documentation/102095/0101/?lang=en
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
 aliases:
+  - Helium byte and element pointer units
   - Helium contiguous and gather accesses
   - MVE gather and scatter offsets
   - Helium interleaved channel loads
@@ -29,6 +31,14 @@ aliases:
 ---
 
 Use this guidance when choosing MVE load and store forms for sequential, irregular, widened, or interleaved data. Match address and element semantics to the layout so gather/scatter operations do not add unnecessary accesses, narrowing does not silently change numeric meaning, and multi-pattern channel transfers preserve the intended order and bounds.
+
+## Keep element counts, byte sizes, and pointer steps separate
+
+A 128-bit vector holds four F32 elements. With a `float` pointer, `p += 4` advances four elements, or 16 bytes; `p += 4 * sizeof(float)` advances sixteen elements (64 bytes when `sizeof(float) == 4`) because C pointer arithmetic already scales by the pointed-to type size. Keep vector lane counts, scalar element counts, byte lengths, and typed-pointer increments distinct. [Coding for Helium v1.1, §7, pp. 23–24](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+Document whether each public block-size argument counts bytes, scalar elements, or complex samples. If it counts bytes, validate and convert it to complete elements before deriving vector groups; if it counts elements, divide by the lane count. A full-vector-only loop needs an explicit divisible-length contract or a bounded remainder path; see [Helium lane predicates and tail handling](techniques-helium-predication-and-tail-handling.md). [Coding for Helium v1.1, §7, pp. 23–24](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+Inspect generated loads, stores, and address increments together, for example in compiler assembly output. In the guide's F32 multiplication example, each vector operation handles four 32-bit elements (16 bytes), while the generated code advances the pointers by 64 bytes. This exposes the sample's byte-count/typed-pointer unit error; do not copy its source or assembly as a recommended stride. For your own kernel, check that each effective address delta matches the elements transferred and the loop's element count. [Coding for Helium v1.1, §7, pp. 23–25](https://support.arm.com/documentation/102095/0101/?lang=en)
 
 ## Match the access form to the address pattern
 

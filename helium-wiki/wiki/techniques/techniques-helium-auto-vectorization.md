@@ -24,6 +24,9 @@ related:
   - languages-c-float16-half-precision
   - patterns-helium-small-kernel-fusion
 sources:
+  - https://support.arm.com/documentation/102095/0101/?lang=en
+  - https://llvm.org/docs/Vectorizers.html
+  - https://clang.llvm.org/docs/LanguageExtensions.html
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/optimizing_c_functions.md#L24-L116
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L759-L822
@@ -31,6 +34,8 @@ sources:
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://github.com/ARM-software/CMSIS-DSP/tree/v1.18.0/Source/FilteringFunctions
 aliases:
+  - Helium SLP loop vectorization and interleaving
+  - clang loop vectorization hints
   - Helium auto-vectorization
   - MVE loop vectorization
   - armclang vectorization remarks
@@ -42,9 +47,13 @@ prerequisites:
   - Preserve the program's behavior when changing loop structure or pointer contracts.
 ---
 
-Use these source-level checks when C or C++ loops are not being vectorized for Helium. The article describes compiler opportunities and obstacles, not guaranteed transformations or speedups; inspect compiler remarks and preserve the original semantics when refactoring.
+Use these source-level checks when C or C++ loops are not being vectorized for Helium. The guide describes compiler opportunities and obstacles, not guaranteed transformations or speedups; inspect compiler remarks and preserve the original semantics when refactoring. For ordinary C/C++, use a suitable library function or compiler-generated vectors where they meet the need. Inspect output before escalating to intrinsics; hand-written assembly requires target-pipeline knowledge and may need different schedules for different processors. See [CMSIS-DSP migration guidance](../patterns/patterns-cmsis-dsp-helium-migration.md) for library selection. [Coding for Helium v1.1, §§3, 6, pp. 8–10, 16](https://support.arm.com/documentation/102095/0101/?lang=en)
 
-For Arm Compiler 6, the article says auto-vectorization is enabled at `-O2`, and recommends `-Ofast` for stronger performance optimization. `-Ofast` can change floating-point semantics, so use it only when the application's numerical requirements permit those changes. The article-specific optimization advice should not be read as a universal recommendation for other compilers. Arm Compiler 6 provides `-fvectorize` and `-fno-vectorize` controls. Request loop-vectorization success, analysis, and missed remarks with:
+The guide's 2020 Arm Compiler 6 table enables auto-vectorization by default at `-O2` and higher, including its listed `-Os`, `-Oz`, `-Ofast`, and `-Omax` levels. At `-O1`, vectorization is disabled by default but can be enabled with `-fvectorize`; `-fno-vectorize` disables it, and `-O0` ignores `-fvectorize`. Treat these as version-specific Arm Compiler settings and check the selected toolchain documentation. The guide presents `-Ofast` as a high-performance option, but it can change floating-point semantics, so use it only when the application's numerical requirements permit those changes. [Coding for Helium v1.1, §6, pp. 17–18](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+Loop vectorization widens loop instructions across multiple consecutive iterations. SLP vectorization combines similar independent scalar instructions already present in the code into vector operations. Loop interleaving is a separate transformation that can expose instruction-level parallelism across iterations. The guide discusses these transformations, but its loop-vectorization shorthand and pragma explanation oversimplify or swap them; use the distinctions in the compiler documentation. [Coding for Helium v1.1, §6, pp. 16, 20](https://support.arm.com/documentation/102095/0101/?lang=en) [LLVM Auto-Vectorization](https://llvm.org/docs/Vectorizers.html)
+
+Request loop-vectorization success, analysis, and missed remarks with:
 
 ```text
 -Rpass=loop-vectorize -Rpass-analysis=loop-vectorize -Rpass-missed=loop-vectorize
@@ -54,19 +63,23 @@ Use the reported reason to guide source changes. The article identifies these pa
 
 - Dependencies between different loop iterations.
 - `break` clauses or complex conditions.
-- Trip counts that are unknown when the loop begins.
+- Trip counts or termination behavior that are difficult for the compiler to analyze.
 - Operations that cannot be vectorized, such as memory barriers.
 - Double-precision floating-point processing for Helium; the article notes that low-overhead branch may still be used in such loops.
 
-Where semantics allow, simplify conditions, make iteration independence visible, and arrange for the trip count to be known before entry. Remove legacy manual loop unrolling when it prevents the compiler from recognizing a vectorization opportunity. Use `restrict` only when the pointed-to objects truly do not alias for the relevant accesses; it is a non-aliasing promise to the compiler, not a hint that can safely be added speculatively.
+Where semantics allow, simplify conditions, make iteration independence visible, and arrange for the trip count to be known before entry. A known-at-entry count is a useful heuristic in the guide's Arm Compiler 6 context, not an absolute restriction across compilers or vectorization techniques. If early exit is required, isolate vectorizable work from control-dependent work or split the loop only when behavior is preserved; account for added passes and intermediate storage. Remove legacy manual loop unrolling when it prevents the compiler from recognizing a vectorization opportunity. Use `restrict` only when the pointed-to objects truly do not alias for the relevant accesses; it is a non-aliasing promise to the compiler, not a hint that can safely be added speculatively. [Coding for Helium v1.1, §6, p. 19](https://support.arm.com/documentation/102095/0101/?lang=en)
 
 Recheck the diagnostics after each change and validate the resulting numerical behavior, especially if changing optimization level or aliasing declarations. See [techniques-arm-compiler-mve-target-configuration](techniques-arm-compiler-mve-target-configuration.md) for target feature selection.
 
 Use successful, missed, and analysis vectorization remarks together: success identifies a transformed loop, missed remarks explain where vectorization did not occur, and analysis remarks can point to statements blocking it. Then inspect the generated hot loop for scalar work, conversions, lane movement, unsupported operations, spills, and tail handling. A success remark alone does not show that the resulting loop has an efficient instruction sequence. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF p. 135]
 
+For Arm Compiler 6, use `-S` to emit assembly for inspection alongside the vectorization remarks. The guide's clipping example illustrates applying the same bounds independently to successive elements, but its assembly listing conflicts with the prose about compare/predication and store width; do not treat that listing as verified output or copy it mechanically. Preserve the application's required NaN, signed-zero, and floating-point optimization behavior when changing such code. [Coding for Helium v1.1, §6, pp. 18–19](https://support.arm.com/documentation/102095/0101/?lang=en)
+
 Do not use `restrict` or an independence pragma to conceal a real loop-carried dependency. A recurrence in which an iteration consumes a value produced by an earlier iteration must retain that ordering. A reduction is a separate case: the compiler may use partial vector accumulators and combine them later, but reordered floating-point additions can change the result. Confirm that the reduction is recognized and validate its numerical error against the application's tolerance. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 137–138]
 
 A small helper called from a hot loop can hide operations from the vectorizer. Where inlining preserves behavior and exposes useful work, let the compiler inline it or use a compiler-specific control only after confirming that the call boundary blocks vectorization. The book's `always_inline` suggestion is specific to its compiler context, not a universal requirement; inspect the compiler decision, code growth, and register pressure. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 138–139]
+
+Use `#pragma clang loop vectorize(enable)` to request loop vectorization and `#pragma clang loop interleave(enable)` to request loop interleaving. These are compiler hints: the compiler ignores a hint when the transformation is unsafe and other compiler limits can still prevent a requested transformation. A pragma cannot remove a true loop-carried dependency. The guide marks these as Arm Compiler community features, so verify availability and behavior in the selected toolchain documentation. [Clang Language Extensions, loop hint optimizations](https://clang.llvm.org/docs/LanguageExtensions.html) [LLVM Auto-Vectorization](https://llvm.org/docs/Vectorizers.html) [Coding for Helium v1.1, §6, p. 20](https://support.arm.com/documentation/102095/0101/?lang=en)
 
 ## Choose loop layout and reuse deliberately
 

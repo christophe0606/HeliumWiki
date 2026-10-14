@@ -15,6 +15,7 @@ Ingest the document requested by the user to extend the helium wiki:
 # Rules to respect
 * For helium code examples, use https://github.com/ARM-software/CMSIS-DSP and don't use the older CMSIS_5 that may still be referenced in old documentation.
 * Don't leave, in the generated wiki pages, references to local documents that won't be available to the user of the skill.  Only references acceptable are URL and names of official public documents.
+Don't talk about documents that are not available. Don't use wording like : the guide, the tutorial except if a link to the public source is available and that it is clear from context what "the" is refering to.
 
 * The markdown MUST NOT contain any customer or partner proprietary information.
 

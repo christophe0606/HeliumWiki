@@ -20,7 +20,9 @@ related:
   - techniques-helium-auto-vectorization
 sources:
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
+  - https://support.arm.com/documentation/102095/0101/?lang=en
 aliases:
+  - Helium complex Q31 dot product
   - Helium integer reductions
   - MVE dot product accumulation
   - Helium vector sum and extrema
@@ -37,6 +39,18 @@ Use architectural integer across-vector sums or dot-product instructions when th
 Choose the accumulator width from a worst-case bound on the full sum or product accumulation, including input signedness, maximum product magnitude, number of terms, scaling, and any incoming accumulator. A non-accumulating form replaces the scalar result with the reduction of the current vector operands; the `A` form adds to the existing scalar accumulator. For a multi-vector reduction, initialize the accumulator to the correct identity and use the accumulating form for subsequent groups so earlier partial sums are retained. Use a wider operation when a 32-bit result cannot hold the proven range; handle a partial final vector so invalid lanes contribute nothing. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 61, 84–88]
 
 For Q31 dot products, the rounding-high long form `VRMLALDAVH` has a distinct result contract: it accumulates into a 72-bit value, rounds, then returns the selected high 64 bits. Its optional scalar accumulator is shifted before being added into that wider representation. This is not an ordinary full-precision sum of products; retain the scaling and output format expected by the selected library function. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 86–87]
+
+### Reduce interleaved complex Q31 dot products
+
+For a non-conjugating complex dot product with interleaved `[real, imaginary]` Q31 components, keep each pair together: for `a = ar + j ai` and `b = br + j bi`, accumulate `ar*br - ai*bi` into the real result and `ar*bi + ai*br` into the imaginary result. Four Q31 lanes in a 128-bit vector hold two complex samples, so preserve real/imaginary pairing instead of grouping arbitrary scalar lanes. Choose a function with these non-conjugating semantics; a conjugating dot product uses different signs. [Coding for Helium v1.1, §8, pp. 28–29](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+For the real component, the guide maps alternating product subtraction to `VRMLSLDAVHA.S32`, accumulating the rounding-high long result into a scalar register pair. This is a rounding-high long multiply/subtract/accumulate contract, not an ordinary full-precision scalar sum of products; select it only when the public function's scaling and rounding semantics match. [Coding for Helium v1.1, §8, p. 29](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+For the imaginary component, `VRMLALDAVHAX.S32` exchanges adjacent components and adds the paired products into a separate scalar register pair. Initialize both accumulators. Follow its add mnemonic and the stated formula rather than the guide's conflicting prose expansion that says subtract. [Coding for Helium v1.1, §8, pp. 29–30](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+The guide shifts both accumulated register pairs right by six to produce its example's Q16.48 result. Apply that shift only when the chosen function's result format requires it; confirm the public function's scaling, accumulation length, intermediate range, and rounding contract instead of assuming every complex Q31 reduction returns Q16.48. Bound the accumulated range for the full number of terms and check overflow against the selected accumulator representation. [Coding for Helium v1.1, §8, pp. 30–31](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+The public count in the guide is complex samples, while each sample occupies two scalar Q31 components and a vector holds two samples. Translate that count explicitly to the chosen loop's lane or tail-count convention, and ensure storage covers both components of every sample. Handle zero count without reading input and provide a bounded or predicated path for an odd final complex sample; verify tail accesses and accumulator range for the requested count. See [Helium lane predicates and tail handling](techniques-helium-predication-and-tail-handling.md). [Coding for Helium v1.1, §8, pp. 28–29, 31–32](https://support.arm.com/documentation/102095/0101/?lang=en)
 
 ## Preserve floating-point accumulation order and tail behavior
 

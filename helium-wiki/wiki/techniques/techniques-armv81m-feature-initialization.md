@@ -25,10 +25,13 @@ related:
   - techniques-cortex-m-latency-aware-scheduling
   - techniques-helium-instruction-interleaving
 sources:
+  - https://support.arm.com/documentation/102095/0101/?lang=en
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://support.arm.com/documentation/102692/0101
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
 aliases:
+  - MVFR1 MVE capability detection
+  - ARM_AEMv8M Helium model configuration
   - enable Helium at startup
   - enable low-overhead branch
   - Armv8.1-M runtime feature setup
@@ -62,7 +65,13 @@ For a TrustZone system, Secure privileged startup code also configures `NSACR` a
 
 ## Distinguish hardware capability from access permission
 
-For portable runtime dispatch, read the Media and VFP Feature Register 1 (`MVFR1`) to determine the implemented MVE level: the documented field distinguishes no MVE, integer-only MVE, and integer plus floating-point MVE. This runtime capability check is separate from the compiler's `__ARM_FEATURE_MVE` macro, which describes the build target. It is also separate from `CPACR` and, when TrustZone is used, `NSACR` permissions: detecting implemented hardware does not enable access for the current security and privilege state. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 157–158]
+Before executing MVE, verify that the selected hardware or software-model configuration implements it. For hardware runtime dispatch, read `MVFR1.MVE` (bits [11:8]): 0 means no MVE, 1 means integer MVE only, and 2 means integer plus floating-point MVE. [Coding for Helium v1.1, §4, p. 11](https://support.arm.com/documentation/102095/0101/?lang=en) [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 157–158]
+
+Keep capability detection separate from runtime authorization. Privileged startup must configure `CPACR` for the intended privilege access; TrustZone Secure setup must authorize Non-secure access in `NSACR` where required. Retain the existing CP10/CP11, `CPPWR`, and DSB/ISB setup above; finding that MVE is implemented does not itself enable execution. [Coding for Helium v1.1, §4, pp. 11–12](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+The `__ARM_FEATURE_MVE` macro describes compiler target capability; it is not a runtime `MVFR1` probe or a permission check. Use the [Arm compiler MVE target configuration](techniques-arm-compiler-mve-target-configuration.md) guidance for build targeting. [Coding for Helium v1.1, §4, p. 11](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+For the guide's `ARM_AEMv8M` FVP specifically, it lists `cpu0.enable_helium_extension=1`, `cpu0.vfp-present=1`, and `cpu0.vfp-enable_at_reset=1`. These are model- and release-specific parameters, not generic hardware registers or universal FVP settings; check the Fast Models Reference Manual for the selected model and release. [Coding for Helium v1.1, §4, p. 11](https://support.arm.com/documentation/102095/0101/?lang=en)
 
 The reference book's low-overhead loop-cache startup statement and cited CMSIS startup example are specific to Cortex-M55. Keep that implementation detail within M55 scope; use the applicable processor documentation and startup code for other Armv8.1-M implementations. Retain the required DSB and ISB barriers and current processor-specific setup guidance when changing startup code. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF p. 158]
 

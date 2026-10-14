@@ -15,22 +15,22 @@ Check each page's processor, revision, implemented features, and toolchain condi
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `techniques-arm-compiler-mve-target-configuration` | [wiki/techniques/techniques-arm-compiler-mve-target-configuration.md](techniques/techniques-arm-compiler-mve-target-configuration.md) | Match Cortex-M52/M55/M85 Arm Compiler CPU flags and feature tests to implemented Helium and floating-point features. |
-| `techniques-helium-auto-vectorization` | [wiki/techniques/techniques-helium-auto-vectorization.md](techniques/techniques-helium-auto-vectorization.md) | Use compiler diagnostics, loop layout, operand reuse, and arithmetic contracts to improve C or C++ Helium vectorization. |
-| `languages-arm-mve-intrinsics-and-assembly` | [wiki/languages/languages-arm-mve-intrinsics-and-assembly.md](languages/languages-arm-mve-intrinsics-and-assembly.md) | Use ACLE types and inspect generated code while preserving register, inline-assembly, ABI, and exception-context contracts. |
+| `techniques-arm-compiler-mve-target-configuration` | [wiki/techniques/techniques-arm-compiler-mve-target-configuration.md](techniques/techniques-arm-compiler-mve-target-configuration.md) | Match Cortex-M52/M55/M85 Arm Compiler target flags and `__ARM_FEATURE_MVE` bitmap tests to implemented integer MVE, vector floating-point, and scalar floating-point features. |
+| `techniques-helium-auto-vectorization` | [wiki/techniques/techniques-helium-auto-vectorization.md](techniques/techniques-helium-auto-vectorization.md) | Distinguish SLP, loop vectorization, and loop interleaving; use compiler diagnostics, loop layout, operand reuse, and numerical contracts to guide C/C++ changes. |
+| `languages-arm-mve-intrinsics-and-assembly` | [wiki/languages/languages-arm-mve-intrinsics-and-assembly.md](languages/languages-arm-mve-intrinsics-and-assembly.md) | Guard ACLE intrinsic headers and namespaces, inspect generated code, and declare assembly operands and clobbers while preserving register, ABI, and exception contracts. |
 
 ## Runtime feature setup and power control
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `techniques-armv81m-feature-initialization` | [wiki/techniques/techniques-armv81m-feature-initialization.md](techniques/techniques-armv81m-feature-initialization.md) | Enable Cortex-M55/M85 low-overhead branch and Helium access, including TrustZone permissions and M55 CP10-dependent shift timing. |
+| `techniques-armv81m-feature-initialization` | [wiki/techniques/techniques-armv81m-feature-initialization.md](techniques/techniques-armv81m-feature-initialization.md) | Separate `MVFR1` and model MVE capability from Cortex-M55/M85 startup permissions, TrustZone access, low-overhead branch setup, and M55 CP10-dependent shift timing. |
 | `techniques-cortex-m55-epu-retention` | [wiki/techniques/techniques-cortex-m55-epu-retention.md](techniques/techniques-cortex-m55-epu-retention.md) | Balance EPU wake delays and power savings on Cortex-M55 r0px/r1p0 systems using automatic retention. |
 
 ## DSP and neural-network library integration
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `patterns-cmsis-dsp-helium-migration` | [wiki/patterns/patterns-cmsis-dsp-helium-migration.md](patterns/patterns-cmsis-dsp-helium-migration.md) | Select CMSIS-DSP Helium paths and release-specific FIR/DF1 state layouts, block sizes, FFT semantics, and matching public routines. |
+| `patterns-cmsis-dsp-helium-migration` | [wiki/patterns/patterns-cmsis-dsp-helium-migration.md](patterns/patterns-cmsis-dsp-helium-migration.md) | Integrate `arm_math.h` and compatible CMSIS-DSP builds; preserve release-specific Helium paths, FIR/DF1 state, block counts, FFT semantics, and public API contracts. |
 | `patterns-cmsis-nn-mve-runtime-selection` | [wiki/patterns/patterns-cmsis-nn-mve-runtime-selection.md](patterns/patterns-cmsis-nn-mve-runtime-selection.md) | Verify Cortex-M55 runtime kernel selection, release-specific operator and tensor contracts, quantization, and deployment memory needs. |
 
 ## Numerical precision, fixed-point arithmetic, and reductions
@@ -39,7 +39,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | --- | --- | --- |
 | `languages-c-float16-half-precision` | [wiki/languages/languages-c-float16-half-precision.md](languages/languages-c-float16-half-precision.md) | Choose `_Float16` for suitable numerical ranges and working-set sizes, with compiler support and DSP lane layouts in view. |
 | `techniques-helium-fixed-point-arithmetic` | [wiki/techniques/techniques-helium-fixed-point-arithmetic.md](techniques/techniques-helium-fixed-point-arithmetic.md) | Match Q formats, intermediate widths, top/bottom lanes, conversions, rounding, saturation, and quantized-operator semantics. |
-| `techniques-helium-vector-reductions` | [wiki/techniques/techniques-helium-vector-reductions.md](techniques/techniques-helium-vector-reductions.md) | Select integer and floating-point reductions with valid accumulator ranges, identities, tail masks, extrema indices, and numeric order. |
+| `techniques-helium-vector-reductions` | [wiki/techniques/techniques-helium-vector-reductions.md](techniques/techniques-helium-vector-reductions.md) | Select integer, floating-point, and complex Q31 reductions with valid accumulator ranges, identities, scaling, component pairing, tail masks, extrema indices, and numeric order. |
 
 ## DSP and matrix kernel layout and fusion
 
@@ -62,7 +62,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `techniques-helium-memory-access-layout` | [wiki/techniques/techniques-helium-memory-access-layout.md](techniques/techniques-helium-memory-access-layout.md) | Choose contiguous, gather/scatter, widening, and complete interleaved transfers from address units, lane layout, and tail bounds. |
+| `techniques-helium-memory-access-layout` | [wiki/techniques/techniques-helium-memory-access-layout.md](techniques/techniques-helium-memory-access-layout.md) | Keep typed-pointer elements and byte counts distinct when choosing contiguous, gather/scatter, widening, and complete interleaved transfers with bounded tails. |
 | `techniques-helium-vector-data-alignment` | [wiki/techniques/techniques-helium-vector-data-alignment.md](techniques/techniques-helium-vector-data-alignment.md) | Separate vector alignment requirements from bus and cache-line performance choices, allocation bounds, padding, and tail handling. |
 | `patterns-helium-circular-buffer-addressing` | [wiki/patterns/patterns-helium-circular-buffer-addressing.md](patterns/patterns-helium-circular-buffer-addressing.md) | Generate bounded wrapped offsets for ring-buffer gathers and compare per-sample circular updates with block-linear FIR state. |
 
@@ -107,4 +107,4 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | --- | --- | --- |
 | `techniques-cortex-m-branch-prediction` | [wiki/techniques/techniques-cortex-m-branch-prediction.md](techniques/techniques-cortex-m-branch-prediction.md) | Use Cortex-M52 branch/loop timing and Cortex-M55/M85 prediction controls, timing, and core-specific overlap constraints. |
 | `techniques-helium-low-overhead-loop-alignment` | [wiki/techniques/techniques-helium-low-overhead-loop-alignment.md](techniques/techniques-helium-low-overhead-loop-alignment.md) | Align Cortex-M55/M85 Helium low-overhead-loop targets to four-byte boundaries and verify padding in the final assembly. |
-| `techniques-helium-predication-and-tail-handling` | [wiki/techniques/techniques-helium-predication-and-tail-handling.md](techniques/techniques-helium-predication-and-tail-handling.md) | Match loop counts, predicate widths, inactive lanes, memory bounds, scalar effects, and early-exit tail-state cleanup. |
+| `techniques-helium-predication-and-tail-handling` | [wiki/techniques/techniques-helium-predication-and-tail-handling.md](techniques/techniques-helium-predication-and-tail-handling.md) | Translate complex samples into scalar-component tail counts; match loop counts, predicate widths, inactive lanes, memory bounds, scalar effects, and early-exit tail-state cleanup. |

@@ -21,7 +21,9 @@ related:
   - techniques-helium-vector-data-alignment
 sources:
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
+  - https://support.arm.com/documentation/102095/0101/?lang=en
 aliases:
+  - MVE complex sample tail counts
   - Helium lane predication
   - MVE tail predication
   - VCTP tail handling
@@ -36,6 +38,14 @@ Use these contracts when writing or reviewing Helium vector loops with per-lane 
 Use `WLS` or `WLSTP` for a loop that may have zero iterations: they branch around the body when the count is zero. Use `DLS` or `DLSTP` only for do-loop behavior whose contract guarantees at least one iteration. Without tail predication, `LR` represents the number of loop iterations. With `WLSTP` or `DLSTP`, `LR` represents the number of remaining elements, and `LETP` decrements it by the vector lane capacity selected for the element size. The final iteration predicates lanes beyond the remaining element count. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 50, 53, 117]
 
 Tail predication keeps a partial final vector in the vector loop; the unprocessed lanes are disabled according to the remaining element count. For explicit intrinsic tails, create the predicate with `VCTP` using an element width that matches the consuming load, arithmetic, or store. This avoids a separate scalar cleanup only when the tail operations themselves honor that predicate. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 100, 150]
+
+### Count complex samples in scalar component lanes
+
+In the guide's complex Q31 example, `numSamples` counts complex samples, each stored as two scalar 32-bit components, real and imaginary. `WLSTP.32` therefore receives `2 * numSamples` scalar components; a full 128-bit vector has four 32-bit lanes and holds two complete complex samples. [Coding for Helium v1.1, §8, pp. 28–29, 32](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+For `WLSTP.32`, `LR` tracks remaining scalar components and `LETP` advances by the selected lane capacity, not one complex sample per iteration. An odd number of complex samples leaves a two-component real/imaginary tail; preserve each pair and do not present an arbitrary one-component tail as a valid complex sample. [Coding for Helium v1.1, §8, pp. 29, 31](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+Preserve WLSTP's zero-count branch so the loop body performs no input load. Before doubling, check that `2 * numSamples` is representable in the loop count type; otherwise unsigned overflow can shorten the loop. Apply tail predication to memory operations and reduction participation, and keep every active component within the caller's buffers; masking arithmetic after an unpredicated load does not make an out-of-bounds read safe. [Coding for Helium v1.1, §8, pp. 29, 31–32](https://support.arm.com/documentation/102095/0101/?lang=en)
 
 ## Preserve predicate granularity and inactive-lane meaning
 

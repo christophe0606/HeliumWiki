@@ -20,9 +20,12 @@ related:
   - techniques-helium-instruction-interleaving
   - patterns-cmsis-dsp-helium-migration
 sources:
+  - https://support.arm.com/documentation/102095/0101/?lang=en
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://developer.arm.com/architectures/system-architectures/software-standards/acle
 aliases:
+  - __ARM_MVE_PRESERVE_USER_NAMESPACE
+  - MVE inline assembly clobbers
   - Arm MVE ACLE intrinsics
   - Helium inline assembly contracts
   - MVE register and ABI rules
@@ -34,7 +37,13 @@ Use these rules when implementing Helium code with C/C++ intrinsics, inline asse
 
 ## Progress from a reference implementation to intrinsics
 
-Begin with portable scalar code that can serve as a correctness reference. Profile it to find the actual bottleneck, then check whether a matching library routine or compiler auto-vectorization addresses that hotspot before writing intrinsics. Introduce intrinsics only for work that still warrants architecture-specific code, and isolate such code in separate files or functions where that helps maintenance and porting. Keep scalar control code separate when doing so makes the vector contract easier to review. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 151–152]
+Begin with portable scalar code that can serve as a correctness reference. Profile it to find the actual bottleneck, then check whether a matching library routine or compiler auto-vectorization addresses that hotspot before writing intrinsics. Intrinsics provide explicit MVE operations in C/C++ while leaving register allocation and pipeline scheduling to the compiler. Their source can be easier to port than hand-scheduled assembly, but still requires compatible target features, matching semantics, and generated-code inspection. Use assembly when compiler output does not meet the kernel's instruction-selection or scheduling needs and the target-specific schedule can be maintained. Isolate architecture-specific code in separate files or functions where that helps maintenance and porting; keep scalar control code separate when it makes the vector contract easier to review. [Coding for Helium v1.1, §§3, 7, pp. 9–10, 21](https://support.arm.com/documentation/102095/0101/?lang=en) [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 151–152]
+
+## Guard the intrinsic header and namespace
+
+Compile intrinsic-using code only for a target with the required `__ARM_FEATURE_MVE` capability, and include `arm_mve.h` in each source file that uses intrinsics. By default, the header exposes both ordinary intrinsic names and their `__arm_`-prefixed forms. Define `__ARM_MVE_PRESERVE_USER_NAMESPACE` before including it to hide the ordinary names and avoid collisions. [Coding for Helium v1.1, §7, pp. 21–22](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+Explicit intrinsics and compiler vectorization can coexist: an MVE-capable target and the intrinsic header enable explicit operations, while optimization settings can separately expose independent ordinary C/C++ code to auto-vectorization. Auto-vectorization is not a prerequisite for intrinsic calls to lower to MVE instructions. [Coding for Helium v1.1, §7, p. 22](https://support.arm.com/documentation/102095/0101/?lang=en)
 
 ## Use ACLE types and distinguish conversion from reinterpretation
 
@@ -48,7 +57,9 @@ The eight 128-bit Q registers alias the scalar floating-point S and D registers,
 
 ## Make inline-assembly effects visible to the compiler
 
-Describe every inline-assembly input and output, including read/write operands, early-clobber outputs, fixed-register requirements, condition-code changes, and memory side effects. If an instruction updates a pointer, declare that pointer as both read and written so the compiler cannot reuse its stale value. Prefer symbolic operands and compiler-selected registers when possible. Constraint codes and immediate ranges vary by toolchain and instruction; verify them against the selected compiler rather than copying unverified constraint strings. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 152–155]
+Model each inline-assembly value's data flow explicitly: input operands describe consumed values, output operands describe overwritten results, and read/write operands describe values both consumed and changed. Also declare early-clobber outputs, fixed-register requirements, condition-code changes, and memory side effects. If an instruction updates a pointer, declare it as both read and written so the compiler cannot reuse its stale value. Prefer symbolic operands and compiler-selected registers when possible. Constraint codes and immediate ranges vary by toolchain and instruction; verify them against the selected compiler rather than copying unverified constraint strings. [Coding for Helium v1.1, §8, pp. 26–27](https://support.arm.com/documentation/102095/0101/?lang=en) [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 152–155]
+
+In the guide's GNU-style inline-assembly form, the post-incremented source pointers are read/write operands (`+r`); keep this update visible to the compiler, but do not assume that constraint spelling is universal. The complex dot-product example also writes Q0 and Q1 without declaring those vector-register effects. Do not copy that assembly as safe: Q registers alias scalar floating-point registers, so undeclared writes can corrupt values the compiler keeps live. Declare every changed register using constraints or clobbers supported by the selected compiler, or use compiler-allocated vector outputs. `volatile` does not repair missing inputs, outputs, or clobbers. [Coding for Helium v1.1, §8, pp. 26–27, 29, 31](https://support.arm.com/documentation/102095/0101/?lang=en) [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 43–44]
 
 ## Preserve callable-function and enclosing-function ABI obligations
 

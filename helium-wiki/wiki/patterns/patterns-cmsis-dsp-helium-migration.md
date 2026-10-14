@@ -25,6 +25,7 @@ related:
   - patterns-helium-small-kernel-fusion
   - techniques-helium-fft-butterflies
 sources:
+  - https://support.arm.com/documentation/102095/0101/?lang=en
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q15.c
@@ -41,6 +42,7 @@ sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/SupportFunctions/arm_q15_to_float.c
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
 aliases:
+  - CMSIS-DSP arm_math.h build integration
   - CMSIS-DSP MVE porting
   - CMSIS-DSP Cortex-M55 migration
   - CMSIS-DSP aligned buffers
@@ -78,7 +80,15 @@ See [Helium DF1 biquad vectorization](../techniques/techniques-helium-df1-biquad
 
 CMSIS-DSP routines are intended to process blocks. For very short blocks, call and loop setup can be a meaningful part of the implementation, so compare a library call with a small dedicated kernel for the application's actual block size. This is a measured design choice, not a universal threshold; see [small-kernel fusion](patterns-helium-small-kernel-fusion.md) for ways to reduce repeated setup and intermediate traffic. Build the library for the processor's implemented MVE and floating-point features, and check the selected release's function and buffer contracts.
 
-Start by selecting a semantically matching optimized CMSIS-DSP routine for DSP work, or an optimized CMSIS-NN kernel through the application's runtime for supported neural-network operators; see [CMSIS-NN MVE runtime selection](patterns-cmsis-nn-mve-runtime-selection.md). For remaining custom C or C++ loops, inspect compiler vectorization diagnostics and generated code. Use Helium intrinsics or assembly only for a residual hotspot that profiling shows still needs attention, then validate its numerical and memory contracts. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 129–133]
+Start by selecting a semantically matching optimized CMSIS-DSP routine for DSP work, or an optimized CMSIS-NN kernel through the application's runtime for supported neural-network operators; see [CMSIS-NN MVE runtime selection](patterns-cmsis-nn-mve-runtime-selection.md). For remaining custom C or C++ loops, inspect compiler vectorization diagnostics and generated code. Use Helium intrinsics or assembly only for a residual hotspot that profiling shows still needs attention, then validate its numerical and memory contracts. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 129–133] A library reduces implementation effort within the interfaces it provides. [Coding for Helium v1.1, §3, pp. 8–9](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+## Integrate the selected CMSIS-DSP release
+
+Include `arm_math.h` for CMSIS-DSP function declarations. The guide's variance example composes `arm_fill_f32`, `arm_dot_prod_f32`, and `arm_mult_f32`; use it to understand library composition, not as an optimal multi-call recipe for every block size. [Coding for Helium v1.1, §5, pp. 13–14](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+Make the selected CMSIS-DSP release's headers and built sources or libraries available to the application, and compile the relevant objects for compatible implemented MVE and floating-point features. An application target flag alone does not establish that a separately built library contains the desired MVE path; verify the selected release's build inputs and implementation. [Coding for Helium v1.1, §5, pp. 14–15](https://support.arm.com/documentation/102095/0101/?lang=en)
+
+Study public CMSIS-DSP implementations and examples to understand lane, buffer, and numerical contracts before maintaining a replacement. Use the [ARM-software/CMSIS-DSP repository](https://github.com/ARM-software/CMSIS-DSP) and verify contracts against the selected release; the source links elsewhere on this page are pinned to v1.18.0. [Coding for Helium v1.1, §10, p. 34](https://support.arm.com/documentation/102095/0101/?lang=en)
 
 ## Replace custom operations with equivalent CMSIS-DSP functions
 
