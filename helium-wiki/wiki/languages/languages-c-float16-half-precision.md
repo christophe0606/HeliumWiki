@@ -40,14 +40,14 @@ aliases:
   - C half precision
   - F16 storage footprint
   - half-precision working-set size
-evidence_basis: "Language and processor capability details are source-reported by the linked public article. CMSIS-DSP v1.18.0 code links corroborate half-precision implementation examples."
+evidence_basis: "Language and processor capability details are source-reported by the public Arm article Getting started with Armv8.1-M based processor: software development hints and tips. CMSIS-DSP v1.18.0 code links corroborate half-precision implementation examples."
 ---
 
 Use IEEE binary16 (`_Float16`) for floating-point data or arithmetic on Armv8.1-M when its reduced precision and dynamic range fit the application. It halves storage per value versus single precision and allows twice as many Helium lane operations per vector, but lane count alone does not predict whole-application performance; conversion, memory behavior, vectorization, and the workload still matter.
 
-The article describes scalar half-precision arithmetic on M55/M85 when an FPU is implemented, and Helium half-precision vector operations when the floating-point vector feature is present. `_Float16` is an arithmetic type. ACLE `__fp16` is intended for storage and conversion, with arithmetic promoted to a wider type, so use `_Float16` when half-precision arithmetic is intended.
+The [Armv8.1-M software development hints and tips article](https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips) describes scalar half-precision arithmetic on M55/M85 when an FPU is implemented, and Helium half-precision vector operations when the floating-point vector feature is present. `_Float16` is an arithmetic type. ACLE `__fp16` is intended for storage and conversion, with arithmetic promoted to a wider type, so use `_Float16` when half-precision arithmetic is intended.
 
-The source associates `_Float16` with the C11 extension ISO/IEC TS 18661-3:2015 and recommends selecting C11 for C projects with the `-std=c11` compiler option. It reports that Arm Compiler 6, LLVM, and GCC of the time also accepted the type in other language modes; compiler and C++ support remain toolchain-version dependent. Where supported, an `f16` suffix and explicit cast express binary16 constants and conversions:
+The [Armv8.1-M software development hints and tips article](https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips) associates `_Float16` with the C11 extension ISO/IEC TS 18661-3:2015 and recommends selecting C11 for C projects with the `-std=c11` compiler option. It reports that Arm Compiler 6, LLVM, and GCC of the time also accepted the type in other language modes; compiler and C++ support remain toolchain-version dependent. Where supported, an `f16` suffix and explicit cast express binary16 constants and conversions:
 
 ```c
 _Float16 x = 0.5f16;
@@ -56,7 +56,7 @@ _Float16 z = x * y;
 printf("%f\n", (double)z);
 ```
 
-The `printf` conversion promotes the value to `double` for `%f`. Do not confuse IEEE binary16 with bfloat16 (`__bf16`), which is a different 16-bit format; the article states that Armv8.1-M does not support bfloat16.
+The `printf` conversion promotes the value to `double` for `%f`. Do not confuse IEEE binary16 with bfloat16 (`__bf16`), which is a different 16-bit format; the [Armv8.1-M software development hints and tips article](https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips) states that Armv8.1-M does not support bfloat16.
 
 ## Half-precision DSP implementation examples
 
@@ -68,6 +68,6 @@ Choose half precision using the application's error tolerance and data range. Q1
 
 When the processor configuration and compiler support the required F16 operations, `_Float16` can reduce array storage compared with F32 and can place more values in a vector register. Select the narrowest representation that meets the application's range, precision, rounding, and saturation requirements; a smaller element does not establish numerical equivalence or guarantee a faster complete kernel. MVE does not provide vector double-precision arithmetic, so double expressions remain scalar work even when surrounding operations use MVE.
 
-When comparing candidate widths, include the full range of intermediate and accumulator values, not just the stored inputs and outputs. Check whether conversions or extra headroom are needed to preserve the kernel's precision, rounding, and saturation contract, and judge the effect across the complete kernel instead of inferring it from element width or lane count. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 32, 34, 36–37]
+When comparing candidate widths, include the full range of intermediate and accumulator values, not just the stored inputs and outputs. Check whether conversions or extra headroom are needed to preserve the kernel's precision, rounding, and saturation contract, and judge the effect across the complete kernel instead of inferring it from element width or lane count. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 32, 34, 36–37](https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf)
 
 For fixed-point kernels, account for the product width and every intermediate before selecting the stored element width; see [Helium fixed-point widths, rounding and saturation](../techniques/techniques-helium-fixed-point-arithmetic.md) for Q-format scaling, widening, and narrowing contracts.

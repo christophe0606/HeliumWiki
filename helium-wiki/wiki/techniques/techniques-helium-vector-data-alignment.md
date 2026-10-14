@@ -30,7 +30,7 @@ prerequisites:
   - Check the selected instruction, library API, ABI, memory region, and processor documentation for actual alignment requirements.
 ---
 
-Use this guidance when arranging vector buffers for MVE loads and stores on Cortex-M55 or Cortex-M85 systems. Required alignment depends on the specific instruction, library API, compiler contract, and target; the source's broad word-alignment statement should not be treated as a universal fault rule for every Helium access.
+Use this guidance when arranging vector buffers for MVE loads and stores on Cortex-M55 or Cortex-M85 systems. Required alignment depends on the specific instruction, library API, compiler contract, and target; the [Processor specific details article](https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/processor_specific.md)'s broad word-alignment statement should not be treated as a universal fault rule for every Helium access.
 
 ## Correctness requirements versus performance alignment
 

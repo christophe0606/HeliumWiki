@@ -39,4 +39,4 @@ Choose write-back, write-through, or noncacheable policy per buffer role and act
 
 ## Scope of this guidance
 
-The source discusses CPU-written output becoming visible to an external bus manager. It does not define a complete DMA-to-CPU invalidate procedure, register sequence, or universal write-through configuration. For device-written buffers, use the selected platform's documented cache maintenance and synchronization procedure; do not infer it from the CPU-write case.
+The [Software optimization for DSP and ML memory-system article](https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Memory/Software_optimization_for_memory_constrained_devices.md) discusses CPU-written output becoming visible to an external bus manager. It does not define a complete DMA-to-CPU invalidate procedure, register sequence, or universal write-through configuration. For device-written buffers, use the selected platform's documented cache maintenance and synchronization procedure; do not infer it from the CPU-write case.
