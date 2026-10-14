@@ -30,6 +30,7 @@ sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/PrivateInclude/arm_vec_fft.h
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L1372-L1480
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
+  - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-going-around-in-circles
 aliases:
   - Helium FFT butterflies
   - MVE complex butterfly vectorization
@@ -86,5 +87,7 @@ Fixed-point complex multiplication uses the saturating doubling multiply add/sub
 ## Generate permutation addresses from logical sample indices
 
 For a radix and permutation that use binary bit reversal, generate an incrementing sequence of logical sample indices and apply VBRSR to the number of index bits dictated by the transform size. This reverses address indices, not sample values. Convert each resulting sample index to the address of a complete interleaved complex record, applying the byte or element scaling required by the selected gather/scatter form. Mixed-radix permutations do not generally follow a simple binary-reversal formula; use the matching permutation table or documented library path. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 188–189]
+
+[VBRSR and gather/scatter design rationale](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-going-around-in-circles).
 
 When permuting in place, keep every sample intact until it has been read for its destination; use a proven swap/permutation schedule rather than overwriting a still-needed value. An out-of-place gather has a distinct contract and requires separate destination storage. Keep the exact transform size, radix stages, direction, twiddle layout, output ordering, normalization, and real-transform endpoint packing consistent with the selected public API. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 188–190]

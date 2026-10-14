@@ -43,6 +43,7 @@ patterns-cmsis-nn-mve-runtime-selection:
 - TFLM CMSIS-NN optimized kernels
 patterns-helium-circular-buffer-addressing:
 - Helium circular buffer
+- MVE contiguous access hint
 - MVE wrapped gather offsets
 - vector ring buffer addressing
 - VIWDUP circular addressing
@@ -217,8 +218,10 @@ techniques-helium-memory-access-layout:
 - Helium contiguous and gather accesses
 - Helium interleaved channel loads
 - Helium interleaved element widths
+- Helium memory pointer writeback
 - Helium vector memory layout
 - MVE gather and scatter offsets
+- MVE size-changing loads
 - MVE VLD2 and VLD4 layouts
 techniques-helium-multiword-carry-arithmetic:
 - FPSCR carry chain

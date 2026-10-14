@@ -18,11 +18,13 @@ related:
   - patterns-cmsis-dsp-helium-migration
 sources:
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
+  - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-going-around-in-circles
 aliases:
   - Helium circular buffer
   - MVE wrapped gather offsets
   - VIWDUP circular addressing
   - vector ring buffer addressing
+  - MVE contiguous access hint
 ---
 
 Use wrapped vector offsets when a streaming kernel repeatedly consumes a window of recent samples and moving that full history after each sample would add unnecessary copying. This MVE pattern keeps the samples in a ring and generates logical offsets for gather or scatter accesses, subject to the instruction's documented step and boundary constraints.
@@ -35,6 +37,8 @@ For a streaming window, write each new sample into the slot holding the oldest s
 
 `VIWDUP` generates incrementing offsets with wrap, while `VDWDUP` generates decrementing offsets with wrap; both also update the scalar start value for the next vector. Use the generated offsets with the matching gather or scatter operation. The supported immediate step is one of 1, 2, 4, or 8. The start and wrap boundary must both be multiples of that step, and the start must be below the boundary; results can be unknown when these requirements are not met. Do not infer a power-of-two ring-size rule from traditional DSP ring buffers: follow the instruction constraints and the actual buffer contract. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF p. 96]
 
+Reuse the offset-vector register after its final gather/scatter consumer; regenerate it from scalar start and boundary state instead of keeping it live between accesses. [Making Helium: Going around in circles (3/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-going-around-in-circles)
+
 Keep offset units consistent with the access form. Unscaled gather/scatter offsets represent byte offsets; a shifted form scales offsets by the accessed element size. Choose a step, boundary, offset-vector element width, and access scale that express the intended addresses without relying on unsigned wrap to encode negative offsets. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 107–108]
 
 Portable C has no implicit circular-addressing construct, so a compiler may not generate this wrapped-offset pattern from ordinary pointer or array code. Where the compiler does not express the required behavior, use the matching ACLE intrinsics or a library routine with a documented contract; do not copy an incomplete sample signature. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 96, 111]
@@ -42,6 +46,8 @@ Portable C has no implicit circular-addressing construct, so a compiler may not 
 ## Treat contiguous-access hints as optional
 
 Place wrapped-offset generation immediately before the intended gather when relying on an implementation's optional opportunity to recognize the wrapped access as one or two contiguous regions. An interrupt between offset generation and the load may discard that hint, but the gather must still return the correct values. The hint is implementation-dependent and must not be required for correctness or assumed to guarantee a timing result. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF p. 111]
+
+In the described implementation, modifying the offset vector clears its optional hint; exceptions may discard it. Ordinary gather behavior preserves correctness, without special metadata save/restore. [Making Helium: Going around in circles (3/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-going-around-in-circles)
 
 ## Compare circular and block-linear FIR state
 

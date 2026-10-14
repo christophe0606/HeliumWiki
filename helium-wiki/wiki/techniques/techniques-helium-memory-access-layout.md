@@ -23,6 +23,7 @@ sources:
   - https://support.arm.com/documentation/102095/0101/?lang=en
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-sudoku-registers-and-rabbits
+  - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-going-around-in-circles
 aliases:
   - Helium byte and element pointer units
   - Helium contiguous and gather accesses
@@ -31,6 +32,8 @@ aliases:
   - MVE VLD2 and VLD4 layouts
   - Helium interleaved element widths
   - Helium vector memory layout
+  - MVE size-changing loads
+  - Helium memory pointer writeback
 ---
 
 Use this guidance when choosing MVE load and store forms for sequential, irregular, widened, or interleaved data. Match address and element semantics to the layout so gather/scatter operations do not add unnecessary accesses, narrowing does not silently change numeric meaning, and multi-pattern channel transfers preserve the intended order and bounds.
@@ -51,9 +54,13 @@ Treat gather/scatter offsets as unsigned values bounded by the selected offset-l
 
 When widening a load, choose signed or unsigned extension to match the source values and subsequent arithmetic. A narrower store writes the selected output element width; it does not by itself apply the scaling, rounding, or saturation required by a numeric conversion. Perform the required shift or conversion explicitly, and preserve the algorithm's range and rounding contract. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 105–106]
 
+Loading packed narrow samples directly into wider lanes supplies arithmetic headroom without a separate expansion step. [Making Helium: Going around in circles (3/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-going-around-in-circles)
+
 ## Keep predication and writeback semantics distinct
 
 False-predicated load lanes become zero, while false-predicated stores leave their destination memory unchanged. Address writeback is a separate scalar effect and can still update the base even when vector lanes are inactive. Check both lane effects and pointer effects when using predicated memory operations. For remaining tail-state and bounds guidance, see [Helium lane predicates and tail handling](techniques-helium-predication-and-tail-handling.md). [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 105–108]
+
+When supported by the load/store form, pre/post-increment or base writeback can replace scalar pointer updates; inspect encoding and dependencies. [Making Helium: Going around in circles (3/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-going-around-in-circles)
 
 ## Treat interleaved channel transfers as complete groups
 
