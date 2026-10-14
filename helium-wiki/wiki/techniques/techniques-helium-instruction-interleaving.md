@@ -24,7 +24,7 @@ related:
   - techniques-cortex-m85-memory-access-scheduling
   - techniques-cortex-m85-floating-point-scheduling
   - techniques-helium-fir-tap-blocking
-  - techniques-helium-df1-biquad-vectorization
+  - techniques-helium-df1-iir-vectorization
   - hardware-dtcm-scatter-gather-banks
   - techniques-profile-guided-helium-optimization
 sources:
@@ -38,6 +38,7 @@ sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q15.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c
+  - https://arm-software.github.io/acle/mve_intrinsics/mve.html
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L354-L459
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/optimizing_c_functions.md#L4-L23
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
@@ -60,7 +61,7 @@ aliases:
   - dependent MVE load/MAC overlap
   - cross-iteration load and MAC overlap
   - loop backedge scheduling
-evidence_basis: "Processor pipeline and instruction characteristics are source-reported in the linked public guides. CMSIS-DSP v1.18.0 links corroborate FIR and biquad implementation examples."
+evidence_basis: "Processor pipeline and instruction characteristics are source-reported in the linked public guides. CMSIS-DSP v1.18.0 links corroborate FIR and biquad implementation examples. The fourth-order recurrence register-footprint example is independently derived; ACLE documents its vector operations and lane transfers."
 ---
 
 Use this page when scheduling MVE instructions on Cortex-M52 r0p3, Cortex-M55 r1p1, or Cortex-M85 r1p0. Each core has different tick models, execution pipes, and overlap limits; follow the matching core-specific section and preserve dependencies. The source-reported schedules describe processor behavior; they do not predict application performance by themselves.
@@ -207,7 +208,9 @@ The linked Cortex-M55 processor guides describe execution rules; CMSIS-DSP v1.18
 
 For F32 FIR scheduling, retain reusable scalar tap coefficients where useful and interleave sample loads with vector multiply/FMA work. The Q15 implementation instead loads tap vectors and uses dot-product/reduction operations. These are distinct lane mappings; preserve their accumulation and output-conversion semantics. Public implementations are available in [arm_fir_f32.c](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_f32.c) and [arm_fir_q15.c](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q15.c); see [Helium FIR tap blocking](techniques-helium-fir-tap-blocking.md) for the register-budget and scratch-pass discussion.
 
-For DF1 biquads, the public [F32 kernel](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f32.c) and [F16 kernel](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c) load expanded coefficient vectors while accumulating the recurrence across four F32 or eight F16 outputs. The coefficient transformation and numerical considerations are documented on [Helium DF1 biquad vectorization](techniques-helium-df1-biquad-vectorization.md).
+For DF1 biquads, the public [F32 kernel](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f32.c) and [F16 kernel](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c) load expanded coefficient vectors while accumulating the recurrence across four F32 or eight F16 outputs. Streaming a coefficient vector or a small scheduled set can limit coefficient live ranges, while interleaving those loads with independent FMA work is conditional on the selected core's resources and hazards; inspect the generated schedule. The coefficient transformation and numerical considerations are documented on [Helium DF1 IIR vectorization](techniques-helium-df1-iir-vectorization.md).
+
+The independently derived four-output fourth-order MVE F32 layout has twelve four-lane coefficient vectors. Each group uses eight input positions (four prior input-history values and four current inputs) and four prior output-history values. Coefficients, the output accumulator, input scalars, pointers, loop controls, and persistent state all contribute to register demand. Keeping history in vector registers can reduce scalar general-purpose-register pressure, but uses vector registers and can require lane transfers; streaming coefficients can free vector registers at the cost of additional loads. The [ACLE MVE reference](https://arm-software.github.io/acle/mve_intrinsics/mve.html) documents the vector operations and scalar/lane transfers. Assess the complete loop, including history extraction and replacement at group boundaries, ABI saves, and possible spills. Load/FMA overlap remains conditional on core-specific scheduling rules. This example describes a design implication of the recurrence expansion; it does not establish a public CMSIS-DSP direct fourth-order implementation or a hardware performance result. See [Helium DF1 IIR vectorization](techniques-helium-df1-iir-vectorization.md) for the independent recurrence algebra.
 
 ## Reuse operands and inspect scheduling hypotheses
 

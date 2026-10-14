@@ -169,10 +169,15 @@ techniques-helium-auto-vectorization:
 - MVE loop layout and data reuse
 - MVE loop vectorization
 - restrict and vectorization
-techniques-helium-df1-biquad-vectorization:
+techniques-helium-df1-iir-vectorization:
+- 4x12 IIR coefficient matrix
 - DF1 recurrence SIMD expansion
+- four output recurrence substitution
+- fourth-order IIR SIMD expansion
 - Helium DF1 biquad vectorization
+- MVE fourth-order DF1 IIR
 - MVE recursive biquad coefficient layout
+- techniques-helium-df1-biquad-vectorization
 techniques-helium-fft-butterflies:
 - CFFT radix 2 radix 4 MVE
 - Helium FFT butterflies

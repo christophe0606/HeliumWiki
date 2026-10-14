@@ -28,6 +28,7 @@ techniques:
   - fft-butterfly-vectorization
   - fir-tap-blocking
   - biquad-recurrence-vectorization
+  - iir-recurrence-vectorization
   - loop-alignment
   - branch-prediction
   - power-management

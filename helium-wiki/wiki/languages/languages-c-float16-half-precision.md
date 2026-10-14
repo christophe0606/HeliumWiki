@@ -22,7 +22,7 @@ related:
   - patterns-cmsis-dsp-helium-migration
   - techniques-cortex-m55-epu-retention
   - techniques-helium-fft-butterflies
-  - techniques-helium-df1-biquad-vectorization
+  - techniques-helium-df1-iir-vectorization
   - patterns-cmsis-nn-mve-runtime-selection
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
@@ -60,7 +60,7 @@ The `printf` conversion promotes the value to `double` for `%f`. Do not confuse 
 
 ## Half-precision DSP implementation examples
 
-The linked [CMSIS-DSP F16 CFFT](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f16.c) and [F16 DF1 implementation](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c) show release-specific lane layouts and coefficient handling. See [Helium FFT butterflies](../techniques/techniques-helium-fft-butterflies.md) and [Helium DF1 biquad vectorization](../techniques/techniques-helium-df1-biquad-vectorization.md) for those implementation patterns and numerical considerations.
+The linked [CMSIS-DSP F16 CFFT](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f16.c) and [F16 DF1 implementation](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c) show release-specific lane layouts and coefficient handling. See [Helium FFT butterflies](../techniques/techniques-helium-fft-butterflies.md) and [Helium DF1 IIR vectorization](../techniques/techniques-helium-df1-iir-vectorization.md) for those implementation patterns and numerical considerations.
 
 Choose half precision using the application's error tolerance and data range. Q15's 16-bit integer lanes do not establish numerical equivalence to `_Float16`, and lane count alone does not predict whole-kernel throughput.
 

@@ -21,7 +21,7 @@ related:
   - hardware-dtcm-scatter-gather-banks
   - languages-c-float16-half-precision
   - techniques-helium-fir-tap-blocking
-  - techniques-helium-df1-biquad-vectorization
+  - techniques-helium-df1-iir-vectorization
   - patterns-helium-small-kernel-fusion
   - techniques-helium-fft-butterflies
 sources:
@@ -74,7 +74,7 @@ The release-pinned [CMSIS-DSP F32 FIR implementation](https://github.com/ARM-sof
 
 For MVE DF1, the public [F32 initializer](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_init_f32.c) uses a static internal helper to expand a 4 by 8 recurrence coefficient array and transpose it into the modified-coefficient structure. The public [F16 initializer](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_init_f16.c) similarly expands an 8 by 12 array and transposes it. The helpers named `generateCoefsFastBiquadF32` and `generateCoefsFastBiquadF16` are static functions inside those implementation files, not public callable APIs. The F32 and F16 MVE initializer functions are public entry points in the release sources; use the matching declarations and structure types for that release. The modified layout is an implementation detail, so do not infer a universal F16 allocation size from the temporary array dimensions.
 
-See [Helium DF1 biquad vectorization](../techniques/techniques-helium-df1-biquad-vectorization.md) for the public coefficient-expansion references and numerical validation guidance. For FIR tap scheduling and the scratch-pass tradeoff, see [Helium FIR tap blocking](../techniques/techniques-helium-fir-tap-blocking.md).
+See [Helium DF1 IIR vectorization](../techniques/techniques-helium-df1-iir-vectorization.md) for the public biquad coefficient-expansion references, derived higher-order layouts, and numerical validation guidance. For FIR tap scheduling and the scratch-pass tradeoff, see [Helium FIR tap blocking](../techniques/techniques-helium-fir-tap-blocking.md).
 
 ## Select block size and library paths
 
