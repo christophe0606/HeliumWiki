@@ -1,6 +1,6 @@
 ---
 id: techniques-helium-trace-analysis
-title: Capture and interpret Cortex-M execution traces
+title: Benchmark on a board before detailed trace analysis
 type: techniques
 architectures:
   - armv8.1-m
@@ -27,15 +27,20 @@ aliases:
   - ETM trace analysis
   - Cortex-M instruction trace workflow
 prerequisites:
+  - Benchmark and profile a representative workload on the intended physical board before considering Tarmac traces.
   - Confirm that the target, simulator, probe, trace plugin, and post-processing tools support the selected trace format.
   - Keep the executable, symbol file, and trace capture from the same build.
 ---
 
-Use trace analysis when the target or simulator can report instruction flow and execution events and a profile needs more detail than function-level attribution. Trace support, plugin names, timestamp sources, and post-processing formats vary by model, probe, and tool release; verify the installed toolchain's documentation before choosing a workflow.
+Start by benchmarking and profiling a representative workload on the intended physical board. Board measurements are the preferred basis for performance decisions because they exercise the actual processor, memory system, peripherals, and application configuration. Use available timers, PMU counters, ordinary profiling, generated-code inspection, and board debugging to narrow the problem. If instruction-flow detail is still needed, consider supported on-board ETM capture.
+
+Tarmac traces are generated in a simulated environment and produce very large logs that are costly to store and post-process; tracing can also slow simulation. Use a Tarmac trace as the very last resort to investigate a specific problem that board measurements and the available simpler diagnostics have not explained. Simulator trace timestamps do not establish target-board performance. Use the trace to form a focused hypothesis, then confirm any resulting change by benchmarking on the board.
+
+Trace support, plugin names, timestamp sources, and post-processing formats vary by model, probe, and tool release; verify the installed toolchain's documentation before choosing a capture workflow. On-board ETM trace and simulated Tarmac trace are different sources of evidence.
 
 ## Capture a bounded, representative interval
 
-Tracing an entire periodic workload can produce unwieldy output and slow simulation. Filter capture to a representative interval or delay trace start until the part of interest. The [ML/DSP front-end optimization case study](https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md) uses the model parameter `TRACE.TarmacTrace.start-instruction-count` for delayed capture; confirm that the installed model and trace plugin expose it. Keep the workload and capture conditions stable when comparing builds, and record which executable and platform produced each trace. A trace from an FVP or AVH model can help inspect structural behavior, but the Arm-Examples/Helium-Optimization repository warns that those model timestamps are not cycle-accurate target timing.
+If Tarmac is still necessary as a last resort, reduce the problem to a minimal reproduction and capture only the representative interval needed to test the hypothesis. Delay trace start until the part of interest and stop capture after it; avoid tracing the entire periodic workload. The [ML/DSP front-end optimization case study](https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md) uses the model parameter `TRACE.TarmacTrace.start-instruction-count` for delayed capture; confirm that the installed model and trace plugin expose it. Keep the workload and capture conditions stable when comparing builds, and record which executable and platform produced each trace. A trace from an FVP or AVH model can help inspect structural behavior, but the Arm-Examples/Helium-Optimization repository warns that those model timestamps are not cycle-accurate target timing.
 
 ## Match symbols and post-process consistently
 

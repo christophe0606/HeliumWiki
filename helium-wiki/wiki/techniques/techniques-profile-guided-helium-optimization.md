@@ -45,16 +45,18 @@ aliases:
   - Cortex-M55 cache refill and demand-miss profiling
 prerequisites:
   - Use a representative application build and workload.
-  - Select an active profiler, trace source, or simulator that supports the target.
+  - Start with benchmarking and a supported profiling method on the intended physical board.
 ---
 
-Use profiling to select implementation work from the application's current bottlenecks. Compare end-to-end DSP, NN, and accelerator contributions instead of assuming that an earlier hotspot list remains valid after enabling Helium, changing libraries, or offloading work to an NPU.
+Start by benchmarking and profiling the representative application on the intended physical board. Prefer board measurements for performance decisions so that the actual processor, memory system, peripherals, and application configuration are exercised. Use profiling to select implementation work from the application's current bottlenecks. Compare end-to-end DSP, NN, and accelerator contributions instead of assuming that an earlier hotspot list remains valid after enabling Helium, changing libraries, or offloading work to an NPU.
 
 ## Iterate from application profile to kernel change
 
 Capture a representative workload and identify which application stages currently account for the work of interest. Prefer a low-risk library substitution or data-placement change when it addresses the hotspot. After every structural change, profile the complete application again because the relative cost of DSP frontend, NN backend, and accelerator work can shift.
 
-Active profiling can use markers, timestamps, PMU samples, or RTOS and stream-node transitions. It may require source instrumentation or a rebuild, and instrumentation can perturb execution. Passive profiling uses supported hardware or simulator trace features, such as ETM-based tools or model trace plugins, and can reduce source changes; its availability depends on the target, probe, model, and tool version. Choose the method that can observe the relevant workload with enough context.
+Active profiling can use markers, timestamps, PMU samples, or RTOS and stream-node transitions. It may require source instrumentation or a rebuild, and instrumentation can perturb execution. Start with the simplest supported board measurement that answers the question. If instruction-flow detail is needed, supported on-board ETM profiling can reduce source changes; its availability depends on the target, probe, and tool version.
+
+Use Tarmac traces only as the very last resort when board benchmarking, ordinary profiling, generated-code inspection, and available board diagnostics leave a specific problem unexplained. Tarmac traces are generated in a simulated environment and produce very large logs, with substantial storage and post-processing costs. They can help investigate execution structure, but their timestamps do not establish performance on the board. Capture a minimal interval and confirm any resulting optimization with the complete workload on the board. See [board benchmarking and detailed trace analysis](techniques-helium-trace-analysis.md).
 
 ## Diagnose memory-bound dense kernels
 
@@ -74,7 +76,7 @@ Loop unrolling can amortize loop-control work across iterations, but it increase
 
 ## Match the model to the question
 
-A functional simulator can check instruction behavior and program correctness, but that result alone does not establish how a Cortex-M55 schedule, cache path, or packed row-block layout performs. Arm describes Fast Models as functionally accurate programmer's view models. Use a timing-capable Cycle Model or the target hardware when evaluating schedule and memory-system behavior, and verify which timing and memory features the selected model actually implements. A model's timing is evidence for its documented scope, not proof of the complete target system's behavior. [Arm Fast Models](https://www.arm.com/products/development-tools/simulation/fast-models) [Using Arm Models to Compare Compiler Performance](https://developer.arm.com/community/arm-community-blogs/b/tools-software-ides-blog/posts/using-arm-models-to-compare-compiler-performance)
+A functional simulator can check instruction behavior and program correctness, but that result alone does not establish how a Cortex-M55 schedule, cache path, or packed row-block layout performs. Arm describes Fast Models as functionally accurate programmer's view models. Prefer benchmarking on the intended physical board when evaluating schedule and memory-system behavior. A timing-capable Cycle Model can provide supplementary evidence within its documented scope; verify which timing and memory features it actually implements. A model's timing is not proof of the complete target system's behavior. Use model results to form hypotheses and confirm performance conclusions by benchmarking on the board. [Arm Fast Models](https://www.arm.com/products/development-tools/simulation/fast-models) [Using Arm Models to Compare Compiler Performance](https://developer.arm.com/community/arm-community-blogs/b/tools-software-ides-blog/posts/using-arm-models-to-compare-compiler-performance)
 
 Generated assembly and static scheduling analysis can help form a hypothesis. Evaluate the complete implementation with representative setup and placement, including any offline or online weight packing, entry/exit work, row and column tails, output stores, and fused finalization. Keep correctness checks on the functional path and use timing-capable evidence for performance questions; do not infer a measured kernel result from an instruction schedule alone. See [Helium matrix kernel layout](techniques-helium-matrix-kernel-layout.md).
 

@@ -8,8 +8,8 @@ Check each page's processor, revision, implemented features, and toolchain condi
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `techniques-profile-guided-helium-optimization` | [wiki/techniques/techniques-profile-guided-helium-optimization.md](techniques/techniques-profile-guided-helium-optimization.md) | Prioritize hotspots, diagnose dense-kernel memory limits, interpret refill and demand-miss events, match model scope to the memory system, and reassess serial overhead, unrolling, and complete workloads after structural changes. |
-| `techniques-helium-trace-analysis` | [wiki/techniques/techniques-helium-trace-analysis.md](techniques/techniques-helium-trace-analysis.md) | Capture bounded Cortex-M traces, match executable symbols, align comparable events, and interpret timestamp and sleep limitations. |
+| `techniques-profile-guided-helium-optimization` | [wiki/techniques/techniques-profile-guided-helium-optimization.md](techniques/techniques-profile-guided-helium-optimization.md) | Benchmark on the intended board first, prioritize hotspots, diagnose memory limits, interpret PMU events, and reassess complete workloads after changes; use Tarmac as the very last resort for unresolved problems. |
+| `techniques-helium-trace-analysis` | [wiki/techniques/techniques-helium-trace-analysis.md](techniques/techniques-helium-trace-analysis.md) | Prefer board benchmarking; Tarmac produces very large traces in a simulated environment and is the very last resort for unresolved problems. Bound any necessary capture, match symbols, and confirm conclusions on the board. |
 
 ## Compiler configuration and MVE programming contracts
 
