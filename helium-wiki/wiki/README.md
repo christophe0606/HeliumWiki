@@ -16,7 +16,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | ID | Path | Quick description |
 | --- | --- | --- |
 | `techniques-arm-compiler-mve-target-configuration` | [wiki/techniques/techniques-arm-compiler-mve-target-configuration.md](techniques/techniques-arm-compiler-mve-target-configuration.md) | Match Cortex-M52/M55/M85 Arm Compiler target flags and `__ARM_FEATURE_MVE` bitmap tests to implemented integer MVE, vector floating-point, and scalar floating-point features. |
-| `techniques-helium-auto-vectorization` | [wiki/techniques/techniques-helium-auto-vectorization.md](techniques/techniques-helium-auto-vectorization.md) | Distinguish SLP, loop vectorization, and interleaving; match sixteen byte elements or eight halfword lanes to dot signedness, then verify operand reuse, F16 code, tail policy, and numerical contracts with compiler diagnostics. |
+| `techniques-helium-auto-vectorization` | [wiki/techniques/techniques-helium-auto-vectorization.md](techniques/techniques-helium-auto-vectorization.md) | Inspect SLP, loop vectorization, and interleaving for contiguous products, mixed-width dots, and F16 kernels; verify operand reuse, scalar-element counts, aliasing, and source tail-read bounds. |
 | `languages-arm-mve-intrinsics-and-assembly` | [wiki/languages/languages-arm-mve-intrinsics-and-assembly.md](languages/languages-arm-mve-intrinsics-and-assembly.md) | Guard ACLE interfaces and assembly effects; budget F16 Q-register row accumulators, VMLADAVA.S16 even-GPR accumulators, long-reduction GPR pairs, and VLDRB.S16 immediate-form low-GPR bases while preserving ABI and ECI contracts. |
 
 ## Runtime feature setup and power control
@@ -30,7 +30,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `patterns-cmsis-dsp-helium-migration` | [wiki/patterns/patterns-cmsis-dsp-helium-migration.md](patterns/patterns-cmsis-dsp-helium-migration.md) | Integrate `arm_math.h` and compatible CMSIS-DSP builds; compose F16 matrix-vector/bias and max/exponential APIs while preserving release-specific Helium paths, memory and math contracts, FIR/DF1 state, block counts, and FFT semantics. |
+| `patterns-cmsis-dsp-helium-migration` | [wiki/patterns/patterns-cmsis-dsp-helium-migration.md](patterns/patterns-cmsis-dsp-helium-migration.md) | Integrate release-specific CMSIS-DSP paths and contracts; compose F16 math APIs and two mono F32 FIRs for interleaved stereo with separate channel state, bounded conversion scratch, and correct frame counts. |
 | `patterns-cmsis-nn-mve-runtime-selection` | [wiki/patterns/patterns-cmsis-nn-mve-runtime-selection.md](patterns/patterns-cmsis-nn-mve-runtime-selection.md) | Verify Cortex-M55 runtime kernel selection, release-specific operator and tensor contracts, quantization, and deployment memory needs. |
 
 ## Numerical precision, fixed-point arithmetic, and reductions
@@ -39,7 +39,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | --- | --- | --- |
 | `languages-c-float16-half-precision` | [wiki/languages/languages-c-float16-half-precision.md](languages/languages-c-float16-half-precision.md) | Choose `_Float16` for suitable numerical ranges and working-set sizes, with compiler support and DSP lane layouts in view. |
 | `techniques-helium-fixed-point-arithmetic` | [wiki/techniques/techniques-helium-fixed-point-arithmetic.md](techniques/techniques-helium-fixed-point-arithmetic.md) | Match Q formats, intermediate widths, top/bottom lanes, conversions, rounding, saturation, and quantized-operator semantics. |
-| `techniques-helium-vector-reductions` | [wiki/techniques/techniques-helium-vector-reductions.md](techniques/techniques-helium-vector-reductions.md) | Match integer, floating-point, and complex Q31 reductions to accumulator semantics, full-row mixed-width bounds, scaling, component pairing, and extrema indices; use explicit F16 pairwise trees and preserve numerical order and tail identities through nonlinear transforms. |
+| `techniques-helium-vector-reductions` | [wiki/techniques/techniques-helium-vector-reductions.md](techniques/techniques-helium-vector-reductions.md) | Match integer, F16/F32, complex Q31, and post-gain energy reductions to accumulator bounds, component pairing, extrema indices, numerical order, pairwise trees, and valid tail contributions. |
 
 ## DSP and matrix kernel layout and fusion
 
@@ -49,7 +49,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | `techniques-helium-fft-butterflies` | [wiki/techniques/techniques-helium-fft-butterflies.md](techniques/techniques-helium-fft-butterflies.md) | Map complex FFT butterflies and permutations to Helium lanes while preserving signs, scaling, output layout, and peak-index association. |
 | `techniques-helium-df1-iir-vectorization` | [wiki/techniques/techniques-helium-df1-iir-vectorization.md](techniques/techniques-helium-df1-iir-vectorization.md) | Study public Cortex-M55 DF1 biquad F32/F16/Q31 layouts, independently derived fourth-order recurrence expansion, and state, bounds, and numerical checks. |
 | `techniques-helium-matrix-kernel-layout` | [wiki/techniques/techniques-helium-matrix-kernel-layout.md](techniques/techniques-helium-matrix-kernel-layout.md) | Reuse inputs across F16 and signed 8-by-16 rows, balance row groups against refill demand, preserve packed byte/F16 producer-consumer formats, evaluate scalar input pre-expansion, amortize packing or partial im2col, and bound transpose accesses. |
-| `patterns-helium-small-kernel-fusion` | [wiki/patterns/patterns-helium-small-kernel-fusion.md](patterns/patterns-helium-small-kernel-fusion.md) | Fuse producer/consumer kernels, finalize matrix-row bias or scaling after complete reductions including F16 rows, and hoist shared exponential output work while preserving accumulator range, numerical order, aliasing, tails, and register budgets. |
+| `patterns-helium-small-kernel-fusion` | [wiki/patterns/patterns-helium-small-kernel-fusion.md](patterns/patterns-helium-small-kernel-fusion.md) | Fuse differential conjugate products with scaling/conversion, in-place gain with post-gain energy, and matrix/exponential consumers while preserving operand order, quantization, reductions, aliasing, tails, and register budgets. |
 
 ## Multiword and carryless polynomial arithmetic
 
@@ -62,8 +62,8 @@ Check each page's processor, revision, implemented features, and toolchain condi
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `techniques-helium-memory-access-layout` | [wiki/techniques/techniques-helium-memory-access-layout.md](techniques/techniques-helium-memory-access-layout.md) | Match pointer units, gather/scatter, load-time widening, and base writeback to data layout; use complete, balanced two/four-channel patterns for 8/16/32-bit elements with bounded tails, and verify memory banks before exploiting contiguous-block parallelism. |
-| `techniques-helium-vector-data-alignment` | [wiki/techniques/techniques-helium-vector-data-alignment.md](techniques/techniques-helium-vector-data-alignment.md) | Separate vector alignment requirements from bus and cache-line performance choices, allocation bounds, padding, and tail handling. |
+| `techniques-helium-memory-access-layout` | [wiki/techniques/techniques-helium-memory-access-layout.md](techniques/techniques-helium-memory-access-layout.md) | Match pointer units, gather/scatter, widening, and complete channel transfers to layout; compare bounded stereo conversion with custom interleaved FIR processing while preserving channel order and independent histories. |
+| `techniques-helium-vector-data-alignment` | [wiki/techniques/techniques-helium-vector-data-alignment.md](techniques/techniques-helium-vector-data-alignment.md) | Separate required alignment, allocation bounds, and tails from performance choices; evaluate relative source/destination offsets conditionally on confirmed Cortex-M55 DTCM store-to-read conflicts. |
 | `patterns-helium-circular-buffer-addressing` | [wiki/patterns/patterns-helium-circular-buffer-addressing.md](patterns/patterns-helium-circular-buffer-addressing.md) | Generate bounded wrapped offsets, reuse offset registers as scratch, treat contiguous-access hints as optional, and compare per-sample circular updates with block-linear FIR state. |
 
 ## Memory placement and buffer lifetimes
@@ -99,7 +99,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | `techniques-cortex-m85-floating-point-scheduling` | [wiki/techniques/techniques-cortex-m85-floating-point-scheduling.md](techniques/techniques-cortex-m85-floating-point-scheduling.md) | Schedule Cortex-M85 scalar and MVE FP by precision, operand dependencies, shared EPU resources, and fused-operation semantics. |
 | `techniques-cortex-m-memory-access-scheduling` | [wiki/techniques/techniques-cortex-m-memory-access-scheduling.md](techniques/techniques-cortex-m-memory-access-scheduling.md) | Schedule Cortex-M52/M55 scalar, FP, and MVE transfers by encoding, alignment, overlap rules, and independent-buffer store-to-read placement. |
 | `techniques-cortex-m85-memory-access-scheduling` | [wiki/techniques/techniques-cortex-m85-memory-access-scheduling.md](techniques/techniques-cortex-m85-memory-access-scheduling.md) | Schedule Cortex-M85 scalar, FP, and MVE memory accesses by encoding, dependencies, store-data forwarding, alignment, and base updates. |
-| `techniques-helium-instruction-interleaving` | [wiki/techniques/techniques-helium-instruction-interleaving.md](techniques/techniques-helium-instruction-interleaving.md) | Interleave Helium work using conditional load/MAC overlap, coefficient streaming and history register budgets, M52 overlap rules, M55 hazards and operand reuse, and M85 issue groups. |
+| `techniques-helium-instruction-interleaving` | [wiki/techniques/techniques-helium-instruction-interleaving.md](techniques/techniques-helium-instruction-interleaving.md) | Interleave loads and arithmetic using M52 overlap rules, M55 two-vector DSP scheduling and hazards, and M85 issue groups; preserve coefficient/history budgets, zero-count entry, drain, and bounded remainders. |
 
 ## Branch prediction, loop control, and lane predicates
 

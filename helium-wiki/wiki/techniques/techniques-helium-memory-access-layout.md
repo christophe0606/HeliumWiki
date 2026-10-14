@@ -19,11 +19,14 @@ related:
   - techniques-cortex-m85-memory-access-scheduling
   - techniques-helium-instruction-interleaving
   - techniques-helium-predication-and-tail-handling
+  - patterns-cmsis-dsp-helium-migration
 sources:
   - https://support.arm.com/documentation/102095/0101/?lang=en
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-sudoku-registers-and-rabbits
   - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-going-around-in-circles
+  - https://arm-software.github.io/acle/mve_intrinsics/mve.html
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_f32.c
 aliases:
   - Helium byte and element pointer units
   - Helium contiguous and gather accesses
@@ -34,6 +37,8 @@ aliases:
   - Helium vector memory layout
   - MVE size-changing loads
   - Helium memory pointer writeback
+  - stereo FIR deinterleave and reinterleave
+  - channel-aware interleaved stereo FIR layout
 ---
 
 Use this guidance when choosing MVE load and store forms for sequential, irregular, widened, or interleaved data. Match address and element semantics to the layout so gather/scatter operations do not add unnecessary accesses, narrowing does not silently change numeric meaning, and multi-pattern channel transfers preserve the intended order and bounds.
@@ -71,6 +76,10 @@ For the MVE interleaved transfer design described here, two- and four-channel la
 The four-way MVE store is divided among four pattern instructions, each transferring 128 bits, to balance memory work with ALU work. For target-specific scheduling, see [Helium instruction interleaving](techniques-helium-instruction-interleaving.md). [Making Helium: Sudoku, registers and rabbits (2/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-sudoku-registers-and-rabbits)
 
 For interleaved stereo or ARGB data, deinterleave only when the computation benefits from separate channel vectors, and interleave again if the output contract requires the original layout. Verify the component order and alpha placement against the caller's format. Aggregate channel loads consume a complete vector block and are not automatically safe for an incomplete final block; use a correctly bounded tail path, such as scalar cleanup or an explicitly tail-safe operation. Keep this separate from alignment and allocation requirements; see [vector data alignment](techniques-helium-vector-data-alignment.md). [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 112–114, 199–200, 202]
+
+For a stereo FIR built from mono library kernels, one complete `vld2q_f32` aggregate consumes four stereo frames, or eight interleaved scalar floats, and yields one four-float vector per channel. The corresponding `vst2q_f32` writes four frames in the same interleaved order. Advance the interleaved pointer by eight scalar elements and each mono-channel pointer by four elements; each mono filter processes the frame count for its channel, not the count of interleaved scalar components. The two channel vectors are a grouped transfer, not one ordinary vector load or store. Keep channel order explicit and handle any incomplete four-frame group with a bounded remainder. The ACLE aggregate definitions document these typed transfers. [ACLE MVE intrinsics](https://arm-software.github.io/acle/mve_intrinsics/mve.html)
+
+The same operation can instead keep samples interleaved in a custom channel-aware kernel when that preserves separate channel histories, the intended tap mapping, and the output frame format. This is a design option, not a public CMSIS-DSP stereo-FIR API or a guaranteed improvement. Compare the conversion passes and temporary storage with the complete custom kernel, and retain two independent state histories even when the tap arrays are shared. See [CMSIS-DSP FIR integration](../patterns/patterns-cmsis-dsp-helium-migration.md) for the two-mono composition and state contracts.
 
 The described patterns serve loads as well as stores and access pairs of contiguous 64-bit blocks. In systems with two interleaved 64-bit memory banks, the block addresses differ in bit 3, allowing parallel dispatch; check the target’s memory organization before relying on this opportunity. [Making Helium: Sudoku, registers and rabbits (2/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-sudoku-registers-and-rabbits)
 

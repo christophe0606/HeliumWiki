@@ -41,6 +41,7 @@ sources:
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://github.com/ARM-software/CMSIS-DSP/tree/v1.18.0/Source/FilteringFunctions
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/BasicMathFunctions/arm_mult_f32.c
   - https://arm-software.github.io/acle/mve_intrinsics/mve.html
 aliases:
   - Helium SLP loop vectorization and interleaving
@@ -53,6 +54,8 @@ aliases:
   - Helium vectorization quality inspection
   - MVE mixed-width vectorization width
   - Clang vectorize_predicate loop hint
+  - MVE elementwise float multiply
+  - Helium vectorized y equals a times b loop
   - MVE F16 vectorization inspection
   - MVE byte dot vectorize_width 16
   - byte dot signedness and row grouping
@@ -142,3 +145,11 @@ Treat this as a compiler policy experiment. Current [Clang loop-hint documentati
 ## Keep cache locality and tiling conditional on the target
 
 When the target has a cache and its memory path benefits from reuse, favor packed data and sequential inner-loop accesses. For a working set too large to reuse effectively, tile multidimensional loops so the active data can fit the relevant cache and be reused before eviction. Cache benefit depends on the actual memory system and working set; code or buffer relocation and interrupt activity can change residency. Profile with representative placement and interrupt conditions instead of assuming a cache always improves the workload. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 174–175]
+
+## Vectorize a contiguous elementwise product
+
+For an independent loop such as `y[i] = a[i] * b[i]`, contiguous input and output arrays map directly to vector loads, lane-wise multiplication, and a vector store. First inspect compiler vectorization remarks and generated code, then compare with the public [CMSIS-DSP `arm_mult_f32` implementation](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/BasicMathFunctions/arm_mult_f32.c) when its API contract fits. A simple product does not by itself justify handwritten assembly or manual unrolling; unroll only if another concrete benefit such as useful operand reuse or load/compute scheduling remains after inspecting the loop.
+
+Keep loop counts in scalar elements: an F32 MVE vector has four lanes and an F16 vector has eight. Use the matching element width and tail-count convention; do not substitute complex-sample or vector-iteration counts for scalar element counts. See [Helium lane predicates and tail handling](techniques-helium-predication-and-tail-handling.md) for zero counts and bounded remainders.
+
+Check the selected library implementation's exact tail accesses. The v1.18.0 `arm_mult_f32` MVE remainder loads full source vectors while predicating the output store, so a masked store alone does not establish that the input reads stay within the allocation. Preserve any documented valid padding/storage requirement, or use a bounded custom or scalar remainder when the inputs end at the final element. Preserve the selected API's aliasing contract and do not add `restrict` unless the buffers truly cannot overlap.

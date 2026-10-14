@@ -27,6 +27,9 @@ related:
   - techniques-helium-df1-iir-vectorization
   - hardware-dtcm-scatter-gather-banks
   - techniques-profile-guided-helium-optimization
+  - patterns-helium-small-kernel-fusion
+  - techniques-helium-vector-reductions
+  - techniques-helium-predication-and-tail-handling
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-why-not-just-add-neon
@@ -38,6 +41,7 @@ sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q15.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/ComplexMathFunctions/arm_cmplx_mult_cmplx_f32.c
   - https://arm-software.github.io/acle/mve_intrinsics/mve.html
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L354-L459
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/optimizing_c_functions.md#L4-L23
@@ -53,6 +57,8 @@ aliases:
   - Cortex-M85 MVE overlap
   - Cortex-M85 SIMD instruction groups
   - Cortex-M85 load store overlap parity
+  - M55 two-vector gain scheduling
+  - Helium two-vector complex load schedule
   - Cortex-M52 one-beat MVE overlap
   - Cortex-M52 shared VF pipeline
   - Cortex-M52 MVE tick scheduling
@@ -239,3 +245,11 @@ Unrolling can create room to move independent loads earlier or reuse an operand,
 Post-increment memory forms may combine an access with pointer advancement and remove separate scalar updates where the exact instruction form and compiler contract allow it. The updated base still creates scalar dependencies, and the overlap limits differ by implementation; retain the specific base-writeback rules in the core sections rather than transferring the book's Cortex-M55 example to other cores. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 177, 179–180]
 
 Branch Future instructions provide an optional architectural hint; an implementation may treat them as no-operations. The book describes them as NOPs on its Cortex-M55 implementation. Keep the fallback branch at the specified location and preserve correct behavior when the hint has no effect; do not add these instructions on the assumption that they accelerate M55 code. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 118–119]
+
+## Schedule two independent vectors in a Cortex-M55 DSP kernel
+
+For independent vector groups, interleave useful loads and arithmetic so later operands are available while the current result is being completed. A two-vector block can expose this overlap in complex multiplication or in an in-place gain-and-energy pass; unrolling is useful here only when it creates independent work that the selected core and memory path can schedule. Keep the reasoning specific to the M55 implementation and inspect the generated loop rather than treating the order as a portable timing rule.
+
+For an exact in-place gain-and-energy pass, load both current vectors before the first store when those reads are valid. Retain the second vector while the first is gained, stored, and accumulated, then process the retained vector. This can separate a store from a later read, but it does not remove a true same-address dependency. See [small-kernel fusion](../patterns/patterns-helium-small-kernel-fusion.md) for the arithmetic and [vector reductions](techniques-helium-vector-reductions.md) for the final reduction.
+
+Make the loop entry and drain explicit. Do not preload from an empty input or past the final valid vector, and handle a count smaller than the unrolled block or a remainder that does not fill it. The public [CMSIS-DSP complex multiplication implementation](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/ComplexMathFunctions/arm_cmplx_mult_cmplx_f32.c) is a complete reference for its own full blocks and complex tail handling. Partial assembly listings without complete operand constraints, modified-base declarations, and clobbers are not callable implementations; preserve the ABI and bounds in any replacement.

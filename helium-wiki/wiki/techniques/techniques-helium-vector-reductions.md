@@ -20,6 +20,7 @@ related:
   - languages-c-float16-half-precision
   - techniques-helium-auto-vectorization
   - techniques-helium-matrix-kernel-layout
+  - patterns-helium-small-kernel-fusion
   - languages-arm-mve-intrinsics-and-assembly
   - patterns-cmsis-dsp-helium-migration
 sources:
@@ -31,6 +32,7 @@ sources:
   - https://github.com/ARM-software/CMSIS-DSP/tree/main/Source/SupportFunctions
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Include/arm_helium_utils.h
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/MatrixFunctions/arm_mat_vec_mult_f16.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/StatisticsFunctions/arm_power_f32.c
 aliases:
   - Helium complex Q31 dot product
   - Helium integer reductions
@@ -42,6 +44,8 @@ aliases:
   - MVE s8 by s16 accumulator range
   - MVE F16 eight-lane pairwise reduction
   - Helium exponential reduction tail handling
+  - post-gain complex energy reduction
+  - sum of squares of gained I and Q components
 ---
 
 Use these reduction choices when a Helium kernel combines lane results into a scalar sum, dot product, extremum, or index. Matching the reduction form to accumulator width, initialization, signedness, tail mask, and numeric order prevents scalar overflow and incorrect results from inactive lanes or changed floating-point association.
@@ -89,6 +93,12 @@ For eight F16 partial sums `a0` through `a7`, an MVE reduction can use two vecto
 The public [CMSIS-DSP v1.18.0 `vecAddAcrossF16Mve` helper](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Include/arm_helium_utils.h) corroborates this lane tree by reinterpreting bits for the reversals, restoring the F16 view, and adding the selected scalar lanes. This is a pairwise tree, not a scalar left fold or a dedicated architectural F16 horizontal-add instruction. F16 VFMA lane accumulators already have their own association before this final tree, so validate rounding and intermediate range against the application contract.
 
 Initialize lane accumulators to zero and include only valid elements in a partial block. Predicated updates should preserve accumulated values in inactive lanes. For a reduction of `exp(x-m)`, zero-filled input lanes are not neutral because `exp(0-m)` is generally nonzero: mask the contribution after the transform or predicate its accumulation, then reduce only valid contributions. Bound both sides of a dot-product tail and its arithmetic; multiplying an inactive zero by a non-finite padded value is not a safe identity. Use explicit predicates or scalar cleanup, and see [public F16 exponential contracts](../patterns/patterns-cmsis-dsp-helium-migration.md) for the vector and scalar paths.
+
+## Reduce energy after applying a gain
+
+For interleaved complex F32 samples `x_n = I_n + j Q_n` and real gain `g`, load each interleaved vector `u` (for example, `u = [I_0,Q_0,I_1,Q_1]`), compute the gained vector `v = g*u` once in the selected precision, then accumulate `VFMA(acc, v, v)` into zero-initialized lane sums. Across the valid scalar lanes, the result is `sum_n((g*I_n)^2 + (g*Q_n)^2)`: each real and imaginary component contributes once, and the result is total post-gain energy. Divide separately only if the API defines an average. This is the intended evaluation order; multiplying an original-energy result by `g*g` need not be bitwise equivalent because of intermediate rounding.
+
+Accumulate lane partial sums through the valid input, then perform one horizontal reduction. Initialize before the first vector, return the defined zero result without reading input for an empty block, and ensure an inactive tail cannot enter the squared sum. Lane-wise F32 accumulation and its final reduction have a different association from a scalar sum; FMA and F16 intermediate range can also affect the result. Validate range, count, and allowed error for the application's precision. The public [CMSIS-DSP `arm_power_f32` implementation](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/StatisticsFunctions/arm_power_f32.c) illustrates lane partial sums and a final helper reduction, but does not provide this fused gain-and-energy operation. See [small-kernel fusion](../patterns/patterns-helium-small-kernel-fusion.md) for retaining gained values during the store.
 
 ## Seed extrema and retain matching indices
 

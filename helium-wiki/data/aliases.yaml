@@ -42,7 +42,9 @@ patterns-cmsis-dsp-helium-migration:
 - CMSIS-DSP F16 extrema and vector exponential
 - CMSIS-DSP F16 matrix-vector and bias composition
 - CMSIS-DSP MVE porting
+- CMSIS-DSP two mono FIR stereo wrapper
 - Helium biquad initialization
+- interleaved stereo FIR with independent channel state
 - MVE F16 public math APIs
 - replace scalar DSP loops with CMSIS-DSP APIs
 patterns-cmsis-nn-mve-runtime-selection:
@@ -61,9 +63,13 @@ patterns-helium-dtcm-dma-pipeline:
 - DTCM working-set allocation
 - ITCM and DTCM real-time placement
 patterns-helium-small-kernel-fusion:
+- conjugate previous complex sample times current sample
 - eliminate short DSP temporary buffers
 - F16 exponential reduction kernel fusion
+- fuse complex product scaling conversion and store
 - fuse matrix-vector output scaling after row reduction
+- fused gain and post-gain energy
+- Helium differential complex product
 - Helium F16 bias after row reduction
 - Helium loop fusion
 - inline short CMSIS-DSP call chains
@@ -184,7 +190,9 @@ techniques-helium-auto-vectorization:
 - Helium auto-vectorization
 - Helium SLP loop vectorization and interleaving
 - Helium vectorization quality inspection
+- Helium vectorized y equals a times b loop
 - MVE byte dot vectorize_width 16
+- MVE elementwise float multiply
 - MVE F16 vectorization inspection
 - MVE loop layout and data reuse
 - MVE loop vectorization
@@ -230,10 +238,12 @@ techniques-helium-instruction-interleaving:
 - cross-iteration load and MAC overlap
 - dependent MVE load/MAC overlap
 - Helium instruction scheduling
+- Helium two-vector complex load schedule
 - instruction overlap
 - LLVM-MCA Helium scheduling diagnosis
 - loop backedge scheduling
 - M55 E2 E3 SRF write hazards
+- M55 two-vector gain scheduling
 - MVE instruction interleaving
 - MVE operand reuse across independent outputs
 techniques-helium-low-overhead-loop-alignment:
@@ -256,6 +266,7 @@ techniques-helium-matrix-kernel-layout:
 - MVE packed matrix row-block traversal
 - scalar DSP pre-expanded byte input fallback
 techniques-helium-memory-access-layout:
+- channel-aware interleaved stereo FIR layout
 - Helium byte and element pointer units
 - Helium contiguous and gather accesses
 - Helium interleaved channel loads
@@ -265,6 +276,7 @@ techniques-helium-memory-access-layout:
 - MVE gather and scatter offsets
 - MVE size-changing loads
 - MVE VLD2 and VLD4 layouts
+- stereo FIR deinterleave and reinterleave
 techniques-helium-multiword-carry-arithmetic:
 - FPSCR carry chain
 - Helium vector carry propagation
@@ -291,7 +303,9 @@ techniques-helium-trace-analysis:
 - TARMAC trace profiling
 techniques-helium-vector-data-alignment:
 - Cortex-M vector data layout
+- M55 relative DTCM buffer offsets
 - MVE buffer alignment
+- MVE source and destination offset experiment
 techniques-helium-vector-reductions:
 - Helium complex Q31 dot product
 - Helium exponential reduction tail handling
@@ -303,6 +317,8 @@ techniques-helium-vector-reductions:
 - MVE floating-point reduction
 - MVE s8 by s16 accumulator range
 - MVE scalar accumulator for widening reductions
+- post-gain complex energy reduction
+- sum of squares of gained I and Q components
 techniques-profile-guided-helium-optimization:
 - Amdahl's law and loop-control overhead
 - Cortex-M55 cache refill and demand-miss profiling

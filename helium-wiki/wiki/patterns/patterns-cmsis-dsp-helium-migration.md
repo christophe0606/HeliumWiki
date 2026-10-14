@@ -29,12 +29,14 @@ related:
   - techniques-helium-matrix-kernel-layout
   - techniques-helium-vector-reductions
   - techniques-helium-predication-and-tail-handling
+  - techniques-helium-memory-access-layout
 sources:
   - https://support.arm.com/documentation/102095/0101/?lang=en
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q15.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q31.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_init_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_init_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_init_f16.c
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/basic_optimization_topics.md#L80-L107
@@ -63,6 +65,8 @@ aliases:
   - CMSIS-DSP F16 matrix-vector and bias composition
   - CMSIS-DSP F16 extrema and vector exponential
   - MVE F16 public math APIs
+  - CMSIS-DSP two mono FIR stereo wrapper
+  - interleaved stereo FIR with independent channel state
 prerequisites:
   - Build the CMSIS-DSP source for the processor's actual feature configuration.
   - Check the documentation for the specific CMSIS-DSP release and function before changing buffer sizes or padding.
@@ -146,3 +150,9 @@ When passing a complex FFT result to a magnitude routine, use the complex-sample
 The book's FIR example uses time-reversed coefficients, with the oldest sample paired to the first coefficient; confirm coefficient order against the selected CMSIS-DSP function and data convention before reusing a coefficient array. Coefficients may be shared between filter instances when their contents and layout are compatible, but each independent filter needs its own evolving state and instance structure. Initialize each instance's state, coefficient and state pointers, and tap metadata through the selected release's public initialization routine or documented contract. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 195–196]
 
 Check that exact CMSIS-DSP release and FIR function for state size, zero-initialization requirements, coefficient padding, and any scratch storage. These requirements can differ between scalar and MVE paths; do not generalize an older example's state formula, padding, or dispatch conditions into a universal allocation rule. The release-pinned public [F32 FIR](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_f32.c), [Q15 FIR](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q15.c), and [Q31 FIR](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q31.c) implementations are release-specific references, not a substitute for that function's documented allocation contract. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF p. 196]
+
+## Compose two mono FIR instances for interleaved stereo frames
+
+If the available public kernel is mono but the caller uses interleaved stereo, deinterleave `N` frames into one `N`-sample block per channel, call `arm_fir_f32` once per channel with a block size of `N`, then interleave the outputs in the original channel order. The block count is frames per channel, not `2*N` interleaved scalar components. Use the public [`arm_fir_init_f32`](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_init_f32.c) and [`arm_fir_f32`](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_f32.c) APIs from the selected release and build the library for the target's configured MVE features; do not depend on a historical `_mve`-suffixed function name.
+
+Initialize two filter instances with two independent state buffers so each channel retains its own history across blocks. Coefficients may share storage only when both filters intentionally use identical taps in a compatible layout. The conversion scratch buffers are additional wrapper storage, not FIR history or state. Check the selected release's tap order, coefficient padding, state length, block-size and in-place contracts; allocate bounded reusable scratch for the supported block size instead of variable-length stack arrays derived from an unbounded input count. Handle conversion tails without reading or writing outside either interleaved or channel storage. For direct interleaved processing and the complete-group transfer/tail rules, see [Helium memory access and layout](../techniques/techniques-helium-memory-access-layout.md); for FIR tap/sample tails and history lifetime, see [Helium FIR tap blocking](../techniques/techniques-helium-fir-tap-blocking.md).

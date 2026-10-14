@@ -25,6 +25,8 @@ related:
   - techniques-helium-fixed-point-arithmetic
   - languages-c-float16-half-precision
   - techniques-helium-predication-and-tail-handling
+  - techniques-helium-memory-access-layout
+  - techniques-helium-fft-butterflies
 sources:
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L849-L867
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L1337-L1371
@@ -37,6 +39,12 @@ sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/StatisticsFunctions/arm_max_no_idx_f16.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FastMathFunctions/arm_vexp_f16.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Include/arm_vec_math_f16.h
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/PrivateInclude/arm_vec_fft.h
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/ComplexMathFunctions/arm_cmplx_mult_cmplx_f32.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/BasicMathFunctions/arm_scale_f32.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/StatisticsFunctions/arm_power_f32.c
+  - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/SupportFunctions/arm_float_to_q7.c
+  - https://arm-software.github.io/acle/mve_intrinsics/mve.html
 aliases:
   - Helium loop fusion
   - eliminate short DSP temporary buffers
@@ -45,6 +53,10 @@ aliases:
   - Helium F16 bias after row reduction
   - Invariant exponential output factor
   - F16 exponential reduction kernel fusion
+  - Helium differential complex product
+  - conjugate previous complex sample times current sample
+  - fuse complex product scaling conversion and store
+  - fused gain and post-gain energy
 prerequisites:
   - Profile the complete application to confirm that the call chain is worth changing.
   - Define numerical, aliasing, and boundary-count behavior before combining operations.
@@ -79,3 +91,15 @@ For an F16 dense row, keep the partial products in lane accumulators, reduce the
 **Mathematical derivation for real-valued inputs:** for a vector of length `N > 0`, let `m = max_i(x_i)` and `s = sum_i exp(x_i - m)`. For finite real inputs, `s` is positive. The expression `sqrt(s^2 / (N * exp(x_i)))` simplifies to `(s / sqrt(N)) * exp(-x_i / 2)`. The factor `s / sqrt(N)` is independent of output index, so compute it once after the max and exponential-sum reductions; then vectorize the per-element exponential and multiplication for valid outputs. This is an algebraic decomposition, not a standard softmax operation. The pass order remains max, sum, common-factor computation, then output because each later stage depends on the earlier reduction.
 
 The real-number identity does not guarantee F16 equivalence. The original square or exponential can overflow or underflow; the transformed exponential and common factor have their own range limits. Narrowing, rounding, exceptional values, and the CMSIS-DSP vector exponential approximation can change results, and its scalar remainder may use `expf`. Set an input range and error tolerance and validate both paths before adopting the rewrite. Require `N > 0`, define empty-input behavior separately, and bound all input and output tails. See [CMSIS-DSP F16 math APIs](patterns-cmsis-dsp-helium-migration.md) for implementation details.
+
+## Fuse a differential complex product with its consumer
+
+When a complex product is immediately scaled, converted, and stored, keep the producer and its consumer in one pass if that removes an intermediate buffer without violating the numeric or aliasing contract. For `previous = p_r + j p_i` and `current = c_r + j c_i`, the derived product `conjugate(previous) * current` has real part `p_r*c_r + p_i*c_i` and imaginary part `p_r*c_i - p_i*c_r`. The operand order matters: using `previous` as operand A and `current` as B gives this sign; reversing them changes the imaginary result. The ACLE rotation form and the CMSIS-DSP private `Conj_AxB` helper illustrate this mapping; ordinary complex multiplication uses a different rotation. See [Helium FFT butterflies](../techniques/techniques-helium-fft-butterflies.md) for the already-covered lane layout and rotations. This formula is a mathematical derivation, not a public fused CMSIS-DSP API.
+
+Hoist a factor shared by all components when the transformation is valid for the required precision and rounding. Preserve the caller's scale, conversion width, rounding, signed output range, and behavior for exceptional values. A byte-width store writes low output bits; it does not perform a numeric conversion, scaling, rounding, clipping, or saturation. Do not equate such a store with the distinct contract of [CMSIS-DSP `arm_float_to_q7`](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/SupportFunctions/arm_float_to_q7.c), which includes saturating conversion. Define the output quantization contract explicitly and see [Helium memory access and layout](../techniques/techniques-helium-memory-access-layout.md) for narrowing semantics.
+
+## Fuse in-place gain with post-gain energy
+
+For interleaved complex samples `x_n = I_n + j Q_n` and a real gain `g`, keep the layout interleaved: load a vector such as `u = [I_0,Q_0,I_1,Q_1]`, compute `v = g*u` once in the chosen precision, store `v`, and accumulate its squares while it remains in a register. Across all valid lanes this produces `sum_n((g*I_n)^2 + (g*Q_n)^2)`, the total energy of the gained values. It is not the input energy and is not an average unless a separately defined normalization is applied. A public reference sequence is `arm_scale_f32` over the interleaved scalar components followed by `arm_power_f32` on those scaled components; the fused operation is a custom composition, not a CMSIS-DSP API. [CMSIS-DSP `arm_scale_f32`](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/BasicMathFunctions/arm_scale_f32.c) [CMSIS-DSP `arm_power_f32`](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/StatisticsFunctions/arm_power_f32.c)
+
+Initialize lane partial sums to zero, include each real and imaginary component once, and reduce once after all valid elements. Load every current vector before its in-place store where required to preserve unread values; do not assume arbitrary partial overlap is safe. Define zero-input behavior, exclude inactive tail lanes, and account for changed FMA/reduction association and F16 range if those formats are used. See [Helium vector reductions](../techniques/techniques-helium-vector-reductions.md) for accumulation and tail rules.
