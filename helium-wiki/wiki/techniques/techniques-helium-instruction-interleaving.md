@@ -28,6 +28,7 @@ related:
   - techniques-profile-guided-helium-optimization
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
+  - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-why-not-just-add-neon
   - https://support.arm.com/documentation/102692/0101
   - https://support.arm.com/documentation/107950/0100
   - https://support.arm.com/documentation/107730/0003
@@ -54,6 +55,7 @@ aliases:
   - Cortex-M52 MVE tick scheduling
   - MVE operand reuse across independent outputs
   - LLVM-MCA Helium scheduling diagnosis
+  - dependent MVE load/MAC overlap
 evidence_basis: "Processor pipeline and instruction characteristics are source-reported in the linked public guides. CMSIS-DSP v1.18.0 links corroborate FIR and biquad implementation examples."
 ---
 
@@ -212,6 +214,8 @@ When low-level scheduling is justified, interleave independent load and arithmet
 ## Apply beatwise overlap only within the selected implementation
 
 MVE exposes a fixed-width vector operation divided into 32-bit beats, while the implementation determines how many beats execute per architectural tick and which instruction overlaps are supported. The reference book's dual-beat example is specific to its Cortex-M55 discussion; it does not define Cortex-M52 or Cortex-M85 execution pipelines. Use the matching core and revision guidance above to determine actual resources, forwarding, and hazards. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 42–46]
+
+Arm's example shows a vector-wide load/MAC dependency may still allow beatwise overlap: each MAC beat depends on its corresponding loaded beat. This is an architectural possibility; check the selected core's forwarding and resource rules before scheduling. [Making Helium: Why not just add Neon? (1/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-why-not-just-add-neon)
 
 Interleaving a load with arithmetic can expose an opportunity when the instructions use compatible, separate resources, but preserve true data dependencies and exact instruction-form restrictions. A scalar operation between vector instructions is useful only when it is independent of the surrounding vector work and the selected core permits the overlap; changing mnemonic order alone does not remove a dependency. Treat the book's general load/arithmetic alternation as a scheduling hypothesis to check against the core-specific rules, not a portable schedule. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 42–44, 176–177]
 

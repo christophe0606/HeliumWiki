@@ -17,7 +17,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | --- | --- | --- |
 | `techniques-arm-compiler-mve-target-configuration` | [wiki/techniques/techniques-arm-compiler-mve-target-configuration.md](techniques/techniques-arm-compiler-mve-target-configuration.md) | Match Cortex-M52/M55/M85 Arm Compiler target flags and `__ARM_FEATURE_MVE` bitmap tests to implemented integer MVE, vector floating-point, and scalar floating-point features. |
 | `techniques-helium-auto-vectorization` | [wiki/techniques/techniques-helium-auto-vectorization.md](techniques/techniques-helium-auto-vectorization.md) | Distinguish SLP, loop vectorization, and loop interleaving; use compiler diagnostics, loop layout, operand reuse, and numerical contracts to guide C/C++ changes. |
-| `languages-arm-mve-intrinsics-and-assembly` | [wiki/languages/languages-arm-mve-intrinsics-and-assembly.md](languages/languages-arm-mve-intrinsics-and-assembly.md) | Guard ACLE intrinsic headers and namespaces, inspect generated code, and declare assembly operands and clobbers while preserving register, ABI, and exception contracts. |
+| `languages-arm-mve-intrinsics-and-assembly` | [wiki/languages/languages-arm-mve-intrinsics-and-assembly.md](languages/languages-arm-mve-intrinsics-and-assembly.md) | Guard ACLE intrinsic headers and namespaces, inspect generated code, and declare assembly operands and clobbers while preserving register, ABI, and ECI exception-continuation contracts. |
 
 ## Runtime feature setup and power control
 
@@ -39,7 +39,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | --- | --- | --- |
 | `languages-c-float16-half-precision` | [wiki/languages/languages-c-float16-half-precision.md](languages/languages-c-float16-half-precision.md) | Choose `_Float16` for suitable numerical ranges and working-set sizes, with compiler support and DSP lane layouts in view. |
 | `techniques-helium-fixed-point-arithmetic` | [wiki/techniques/techniques-helium-fixed-point-arithmetic.md](techniques/techniques-helium-fixed-point-arithmetic.md) | Match Q formats, intermediate widths, top/bottom lanes, conversions, rounding, saturation, and quantized-operator semantics. |
-| `techniques-helium-vector-reductions` | [wiki/techniques/techniques-helium-vector-reductions.md](techniques/techniques-helium-vector-reductions.md) | Select integer, floating-point, and complex Q31 reductions with valid accumulator ranges, identities, scaling, component pairing, tail masks, extrema indices, and numeric order. |
+| `techniques-helium-vector-reductions` | [wiki/techniques/techniques-helium-vector-reductions.md](techniques/techniques-helium-vector-reductions.md) | Match integer, floating-point, and complex Q31 reductions to scalar accumulator and widening semantics, ranges, identities, scaling, component pairing, tail masks, extrema indices, and numeric order. |
 
 ## DSP and matrix kernel layout and fusion
 
@@ -99,7 +99,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | `techniques-cortex-m85-floating-point-scheduling` | [wiki/techniques/techniques-cortex-m85-floating-point-scheduling.md](techniques/techniques-cortex-m85-floating-point-scheduling.md) | Schedule Cortex-M85 scalar and MVE FP by precision, operand dependencies, shared EPU resources, and fused-operation semantics. |
 | `techniques-cortex-m-memory-access-scheduling` | [wiki/techniques/techniques-cortex-m-memory-access-scheduling.md](techniques/techniques-cortex-m-memory-access-scheduling.md) | Schedule Cortex-M52/M55 scalar, FP, and MVE transfers by encoding, alignment, overlap rules, and independent-buffer store-to-read placement. |
 | `techniques-cortex-m85-memory-access-scheduling` | [wiki/techniques/techniques-cortex-m85-memory-access-scheduling.md](techniques/techniques-cortex-m85-memory-access-scheduling.md) | Schedule Cortex-M85 scalar, FP, and MVE memory accesses by encoding, dependencies, store-data forwarding, alignment, and base updates. |
-| `techniques-helium-instruction-interleaving` | [wiki/techniques/techniques-helium-instruction-interleaving.md](techniques/techniques-helium-instruction-interleaving.md) | Interleave Helium work using M52 beatwise overlap, M55 pipeline hazards and operand reuse, and M85 issue-group rules. |
+| `techniques-helium-instruction-interleaving` | [wiki/techniques/techniques-helium-instruction-interleaving.md](techniques/techniques-helium-instruction-interleaving.md) | Interleave Helium work using conditional dependent load/MAC beatwise overlap, M52 overlap rules, M55 pipeline hazards and operand reuse, and M85 issue-group rules. |
 
 ## Branch prediction, loop control, and lane predicates
 

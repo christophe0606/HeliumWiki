@@ -19,6 +19,7 @@ languages-arm-mve-intrinsics-and-assembly:
 - arm_mve.h vector types
 - Helium exception context
 - Helium inline assembly contracts
+- MVE ECI exception continuation
 - MVE inline assembly clobbers
 - MVE register and ABI rules
 languages-c-float16-half-precision:
@@ -193,6 +194,7 @@ techniques-helium-instruction-interleaving:
 - Cortex-M85 load store overlap parity
 - Cortex-M85 MVE overlap
 - Cortex-M85 SIMD instruction groups
+- dependent MVE load/MAC overlap
 - Helium instruction scheduling
 - instruction overlap
 - LLVM-MCA Helium scheduling diagnosis
@@ -248,6 +250,7 @@ techniques-helium-vector-reductions:
 - MVE argmax and argmin
 - MVE dot product accumulation
 - MVE floating-point reduction
+- MVE scalar accumulator for widening reductions
 techniques-profile-guided-helium-optimization:
 - Helium hotspot profiling workflow
 - isolate hot loops for compiler inspection

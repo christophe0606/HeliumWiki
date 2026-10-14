@@ -20,6 +20,7 @@ related:
   - techniques-helium-auto-vectorization
 sources:
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
+  - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-why-not-just-add-neon
   - https://support.arm.com/documentation/102095/0101/?lang=en
 aliases:
   - Helium complex Q31 dot product
@@ -28,6 +29,7 @@ aliases:
   - Helium vector sum and extrema
   - MVE argmax and argmin
   - MVE floating-point reduction
+  - MVE scalar accumulator for widening reductions
 ---
 
 Use these reduction choices when a Helium kernel combines lane results into a scalar sum, dot product, extremum, or index. Matching the reduction form to accumulator width, initialization, signedness, tail mask, and numeric order prevents scalar overflow and incorrect results from inactive lanes or changed floating-point association.
@@ -35,6 +37,8 @@ Use these reduction choices when a Helium kernel combines lane results into a sc
 ## Reduce integer sums and products into scalar accumulators
 
 Use architectural integer across-vector sums or dot-product instructions when their operand widths and result semantics fit the kernel. These operations place the scalar result in general-purpose registers, reducing pressure on MVE's eight vector registers. `VADDV` returns an integer across-vector sum to a scalar register; `VADDLV` provides a 64-bit result for 32-bit input lanes. For dot products, `VMLAV` produces a 32-bit scalar result and `VMLALV` provides a long result for supported 16- or 32-bit inputs. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 59, 61, 85–86]
+
+The article gives one design rationale: a widening vector result can cross an MVE beat boundary; supported scalar reductions avoid that result path and ease vector-register pressure. Select them by numeric semantics and range. [Making Helium: Why not just add Neon? (1/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-why-not-just-add-neon)
 
 Choose the accumulator width from a worst-case bound on the full sum or product accumulation, including input signedness, maximum product magnitude, number of terms, scaling, and any incoming accumulator. A non-accumulating form replaces the scalar result with the reduction of the current vector operands; the `A` form adds to the existing scalar accumulator. For a multi-vector reduction, initialize the accumulator to the correct identity and use the accumulating form for subsequent groups so earlier partial sums are retained. Use a wider operation when a 32-bit result cannot hold the proven range; handle a partial final vector so invalid lanes contribute nothing. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 61, 84–88]
 

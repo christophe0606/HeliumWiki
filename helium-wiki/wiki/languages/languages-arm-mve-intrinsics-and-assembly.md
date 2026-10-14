@@ -23,6 +23,7 @@ sources:
   - https://support.arm.com/documentation/102095/0101/?lang=en
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://developer.arm.com/architectures/system-architectures/software-standards/acle
+  - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-why-not-just-add-neon
 aliases:
   - __ARM_MVE_PRESERVE_USER_NAMESPACE
   - MVE inline assembly clobbers
@@ -31,6 +32,7 @@ aliases:
   - MVE register and ABI rules
   - Helium exception context
   - arm_mve.h vector types
+  - MVE ECI exception continuation
 ---
 
 Use these rules when implementing Helium code with C/C++ intrinsics, inline assembly, or callable assembly functions. They keep scalar-reference behavior, compiler assumptions, ABI obligations, and exception continuation state aligned so that low-level optimization does not silently break callers or interrupt handling.
@@ -70,5 +72,7 @@ Do not remove required callee saves when moving a callable kernel into a loop or
 ## Preserve MVE exception context and stack capacity
 
 MVE instructions execute in beats, so an exception can occur while vector instructions are partially complete. Preserve the architecturally defined exception continuation state when returning to interrupted code; do not treat every vector instruction as indivisible or reconstruct continuation from undocumented field assumptions. Exception context can include the shared FP/MVE register state and VPR according to the applicable frame and system policy. Context-switch and handler code must retain that state when it owns exception return. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 43–44, 159–162]
+
+The ECI state records completed MVE beats. On exception return, those beats are skipped rather than rolled back or repeated; preserve this state when handler or context-switch code owns the return. [Making Helium: Why not just add Neon? (1/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-why-not-just-add-neon)
 
 With lazy FP/MVE context preservation, the system can reserve extended-frame space and defer saving the shared register state until an exception handler executes an FP or MVE instruction. This can avoid that state transfer when the handler does not use those features, while the first such instruction can trigger preservation. Audit latency-sensitive handlers for compiler-generated FP/MVE instructions as well as explicit intrinsics, and budget stack capacity for the applicable eager or lazy context policy. Follow the system's documented exception policy; do not assume every handler avoids FP/MVE or claim a fixed interrupt cost. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 159–160]
