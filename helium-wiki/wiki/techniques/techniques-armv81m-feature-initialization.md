@@ -27,6 +27,7 @@ related:
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://support.arm.com/documentation/102692/0101
+  - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
 aliases:
   - enable Helium at startup
   - enable low-overhead branch
@@ -58,6 +59,12 @@ __ISB();
 ```
 
 For a TrustZone system, Secure privileged startup code also configures `NSACR` and `CPPWR` to establish whether Non-secure software can access Helium and floating-point features. Compiler feature selection alone does not grant these runtime permissions. This guidance requires privileged startup code and hardware that implements the relevant features.
+
+## Distinguish hardware capability from access permission
+
+For portable runtime dispatch, read the Media and VFP Feature Register 1 (`MVFR1`) to determine the implemented MVE level: the documented field distinguishes no MVE, integer-only MVE, and integer plus floating-point MVE. This runtime capability check is separate from the compiler's `__ARM_FEATURE_MVE` macro, which describes the build target. It is also separate from `CPACR` and, when TrustZone is used, `NSACR` permissions: detecting implemented hardware does not enable access for the current security and privilege state. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 157–158]
+
+The reference book's low-overhead loop-cache startup statement and cited CMSIS startup example are specific to Cortex-M55. Keep that implementation detail within M55 scope; use the applicable processor documentation and startup code for other Armv8.1-M implementations. Retain the required DSB and ISB barriers and current processor-specific setup guidance when changing startup code. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF p. 158]
 
 ## Cortex-M55 r1p1 MVE scalar-shift timing
 

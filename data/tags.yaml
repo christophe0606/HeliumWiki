@@ -32,11 +32,21 @@ techniques:
   - branch-prediction
   - power-management
   - half-precision
+  - lane-predication
+  - tail-predication
+  - vector-memory-layout
+  - circular-addressing
+  - vector-reduction
+  - mve-programming-contracts
+  - fixed-point-arithmetic
   - cmsis-dsp-migration
   - buffer-alignment
   - processor-initialization
   - profile-guided-optimization
   - trace-analysis
+  - matrix-kernel-layout
+  - multiword-carry-arithmetic
+  - polynomial-multiplication
 
 type:
   - hardware

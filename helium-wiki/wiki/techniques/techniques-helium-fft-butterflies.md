@@ -20,6 +20,8 @@ related:
   - hardware-dtcm-scatter-gather-banks
   - languages-c-float16-half-precision
   - techniques-profile-guided-helium-optimization
+  - techniques-helium-fixed-point-arithmetic
+  - techniques-helium-vector-reductions
 sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_cfft_f16.c
@@ -27,6 +29,7 @@ sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/TransformFunctions/arm_bitreversal.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/PrivateInclude/arm_vec_fft.h
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L1372-L1480
+  - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
 aliases:
   - Helium FFT butterflies
   - MVE complex butterfly vectorization
@@ -71,3 +74,17 @@ The public [CMSIS-DSP v1.18.0 fast F32 RFFT](https://github.com/ARM-software/CMS
 For a profiled Cortex-M55 FFT inner loop, inspect adjacent operations that compete for the same execution resources or depend on each other's results. Software pipelining may overlap independent work from neighboring iterations, but requires a valid prologue and epilogue, correct loop bounds and tail handling, and enough registers to hold staged values without spills.
 
 Use static scheduling analysis to form a hypothesis, then inspect the generated instructions and verify the complete kernel on the intended processor. Do not treat the source's assembly alternatives or simulator analysis as a guaranteed improvement. When substituting a CMSIS-DSP FFT function, preserve the selected API's data representation, ordering, scaling, direction, and boundary behavior.
+
+## Preserve complex lane and arithmetic semantics
+
+Keep each complex value's real and imaginary components adjacent, in the order required by the selected ACLE operation. A 128-bit vector holds two F32 complex pairs or four F16 complex pairs. Check the operation's current intrinsic definition and public CMSIS-DSP implementation for its lane convention; do not derive lane order from a conflicting diagram or table. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 89–91]
+
+A floating-point complex product combines complementary rotation contributions: use the VCMUL product and the appropriate VCMLA rotation for the other cross-products, choosing conjugation and sign from the butterfly branch and transform direction. Preserve the fused multiply-accumulate contract when adapting the sequence. VCMLA fuses multiplication and addition but rounds its result to the destination precision; its result can differ from separate multiply and add operations. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 90–92]
+
+Fixed-point complex multiplication uses the saturating doubling multiply add/subtract family with high-half results, including the exchange forms that place the paired result in the other element of a complex pair. Match the add/subtract and exchange pattern to the real/imaginary products, and retain the selected lane order, scaling, saturation, and optional rounding contract. These are fixed-point integer instructions; floating-point VCMUL and VCMLA are not substitutes for them. See [Helium fixed-point arithmetic](techniques-helium-fixed-point-arithmetic.md). [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 89, 92]
+
+## Generate permutation addresses from logical sample indices
+
+For a radix and permutation that use binary bit reversal, generate an incrementing sequence of logical sample indices and apply VBRSR to the number of index bits dictated by the transform size. This reverses address indices, not sample values. Convert each resulting sample index to the address of a complete interleaved complex record, applying the byte or element scaling required by the selected gather/scatter form. Mixed-radix permutations do not generally follow a simple binary-reversal formula; use the matching permutation table or documented library path. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 188–189]
+
+When permuting in place, keep every sample intact until it has been read for its destination; use a proven swap/permutation schedule rather than overwriting a still-needed value. An out-of-place gather has a distinct contract and requires separate destination storage. Keep the exact transform size, radix stages, direction, twiddle layout, output ordering, normalization, and real-transform endpoint packing consistent with the selected public API. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 188–190]

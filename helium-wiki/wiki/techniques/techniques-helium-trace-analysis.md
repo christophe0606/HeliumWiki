@@ -21,6 +21,7 @@ sources:
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L1744-L1889
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/tools/arm_tarmac_2_chrometracing.py
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/tools/arm_json_merge.py
+  - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
 aliases:
   - TARMAC trace profiling
   - ETM trace analysis
@@ -47,3 +48,5 @@ When comparing captures, align the same semantic event or workload occurrence an
 ## Interpret timestamps and sleep carefully
 
 Trace timestamps may be emitted only at selected PC discontinuities or loop branches rather than for every instruction. ETM capture granularity and timestamp support depend on configuration. The source also notes that timestamps can freeze while the MCU sleeps in one capture configuration; absence of CPU trace activity does not establish accelerator elapsed time. Use trace views to form structural hypotheses and confirm timing conclusions on the intended target with an appropriate measurement method.
+
+When halting and restarting would disturb relevant real-time interactions, integrated trace can observe execution while the target runs. The available flow and event detail, MVE-aware decoding, and timestamp precision depend on the device, trace configuration, probe, and tools. Distinguish on-target ETM capture from FVP model trace: simulator trace precision is a model property and does not establish cycle-accurate behavior on hardware. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 166, 173–174]

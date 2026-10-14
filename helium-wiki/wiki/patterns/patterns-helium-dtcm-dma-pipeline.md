@@ -24,6 +24,7 @@ sources:
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Memory/Software_optimization_for_memory_constrained_devices.md#L24-L52
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Memory/Software_optimization_for_memory_constrained_devices.md#L56-L83
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Memory/Software_optimization_for_memory_constrained_devices.md#L105-L115
+  - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
 aliases:
   - DTCM working-set allocation
   - DMA ping-pong DSP buffers
@@ -50,3 +51,7 @@ Confirm that the selected DMA can access the chosen TCM region and that bus arbi
 ## Choose output placement separately
 
 CPU-produced output may stay in main memory when buffering or the memory system can absorb stores. DTCM output followed by a DMA transfer is another option when the platform supports it and the transfer can be scheduled safely. Overlapping output transfer with input transfer is conditional on independent DMA channels and interconnect resources, and can require more buffers. Treat cache visibility and ownership as a separate contract; see [CPU and DMA cache visibility](../techniques/techniques-cache-dma-buffer-visibility.md).
+
+## Confirm TCM mapping and DMA reachability
+
+TCM is explicitly mapped storage, not an automatically populated cache. Its presence, capacity, instruction/data roles, ports, and direct DMA access depend on the processor and system integration; a DMA controller can reach TCM only when that path is implemented. Before placing a hot working set, verify the memory map, linker placement, available capacity, TCM role and access path, and DMA reachability for the actual device. Predictable local TCM access does not establish a system-wide hard real-time guarantee. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 174, 176]

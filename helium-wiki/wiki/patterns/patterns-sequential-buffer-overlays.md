@@ -18,6 +18,7 @@ related:
   - techniques-cache-dma-buffer-visibility
 sources:
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Memory/Software_optimization_for_memory_constrained_devices.md#L56-L83
+  - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
 aliases:
   - sequential data-buffer overlay
   - reuse nonoverlapping DSP workspaces
@@ -33,3 +34,5 @@ Build a lifetime table for each buffer, including initialization, last CPU use, 
 The source also mentions code overlays as possible. Keep that as a distinct design problem: replacing executable code requires separate execution, synchronization, instruction-cache coherency, and toolchain/linker contracts. This data-buffer pattern specifies no code-overlay mechanism. The source notes that small DSP or ML routines often fit well in cacheable memory, making data overlays more common. Analyze the workload before considering code overlays.
 
 For DMA pipelines, include device ownership in the lifetime: a CPU cannot reuse a buffer while DMA still reads or writes it. See [TCM and DMA staging](patterns-helium-dtcm-dma-pipeline.md) and [CPU and DMA cache visibility](../techniques/techniques-cache-dma-buffer-visibility.md).
+
+For NN deployment, include intermediate activations and each selected kernel's scratch in the lifetime map. Recurrent state can remain live across inference steps, skip connections can retain an earlier activation for a later layer, and asynchronous or DMA consumers can outlive the producing call. Reuse storage only after every such consumer has finished. If a pooling implementation writes in place, verify that its selected API permits input destruction and that no later reader needs the original tensor. Derive peak memory from the actual runtime, resolver, and release-specific kernel allocations rather than a fixed runtime allowance. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 219, 224, 229–230]

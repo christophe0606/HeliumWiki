@@ -18,10 +18,14 @@ related:
   - techniques-helium-instruction-interleaving
   - patterns-cmsis-dsp-helium-migration
   - languages-c-float16-half-precision
+  - patterns-helium-circular-buffer-addressing
+  - techniques-helium-predication-and-tail-handling
+  - techniques-helium-auto-vectorization
 sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q15.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q31.c
+  - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
 aliases:
   - Helium FIR tap blocking
   - MVE FIR coefficient preload
@@ -46,6 +50,20 @@ For filters longer than the resident coefficient group, compare two loop organiz
 - Add an inner loop over successive tap groups. This avoids the full-block scratch-pass organization but shortens each sequence of loads and multiply-accumulates.
 
 Choose using block size, tap count, scratch cost, accumulation order, and target-specific evaluation. Keep the intended numerical behavior when changing the loop structure.
+
+## Reuse linear history once per input block
+
+A block FIR can place retained history followed by the current input block in linear state. This gives each output a contiguous sample window and lets the implementation carry the needed newest samples forward for the next block, instead of shifting the full linear history on every new sample. The block-state copy and storage are still costs; choose block size against application latency, available state memory, and the amount of coefficient/sample reuse. Preserve the function's oldest-to-newest sample convention when forming windows and carrying history. This is a block-processing alternative to [circular-buffer addressing](../patterns/patterns-helium-circular-buffer-addressing.md), not a replacement for every streaming contract. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 194–196]
+
+## Share F32 tap work and handle both remainders
+
+An F32 implementation can reuse a scalar tap coefficient across several output lanes: load overlapping sample windows, then shift the start of the next window by one sample for the next tap. Short-tap specializations and the general tap loop can have different live-register and state requirements, so follow the selected function and inspect the complete kernel rather than treating one layout as universal. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF p. 196]
+
+Sample-count tails and tap-count remainders are separate conditions. Predicate the final partial output vector or use bounded scalar cleanup for the remaining samples, and use a distinct valid path for coefficients left outside a complete tap group. Confirm that every sample load and output store stays within its allocation and that inactive lanes cannot contribute to meaningful outputs. Do not assume that handling one remainder also handles the other. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF p. 196]
+
+## Keep direct-convolution edge bounds explicit
+
+A direct convolution loop can resist vectorization because each output has different inner-loop start and end bounds and one input is traversed in the opposite direction. A custom implementation may separate a regular in-bounds interior from edge cases only when coefficient order, accumulation order, output length, and boundary behavior remain equivalent. Check for a matching public CMSIS-DSP convolution function in the selected release before maintaining a custom path. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF p. 193]
 
 ## Source limitations
 

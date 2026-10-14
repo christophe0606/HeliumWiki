@@ -31,6 +31,7 @@ sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_biquad_cascade_df1_f16.c
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/basic_optimization_topics.md#L80-L107
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Memory/Software_optimization_for_memory_constrained_devices.md#L105-L121
+  - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
 aliases:
   - half precision floating point
   - IEEE binary16
@@ -66,3 +67,7 @@ Choose half precision using the application's error tolerance and data range. Q1
 ## Data width and working-set choice
 
 When the processor configuration and compiler support the required F16 operations, `_Float16` can reduce array storage compared with F32 and can place more values in a vector register. Select the narrowest representation that meets the application's range, precision, rounding, and saturation requirements; a smaller element does not establish numerical equivalence or guarantee a faster complete kernel. MVE does not provide vector double-precision arithmetic, so double expressions remain scalar work even when surrounding operations use MVE.
+
+When comparing candidate widths, include the full range of intermediate and accumulator values, not just the stored inputs and outputs. Check whether conversions or extra headroom are needed to preserve the kernel's precision, rounding, and saturation contract, and judge the effect across the complete kernel instead of inferring it from element width or lane count. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 32, 34, 36–37]
+
+For fixed-point kernels, account for the product width and every intermediate before selecting the stored element width; see [Helium fixed-point widths, rounding and saturation](../techniques/techniques-helium-fixed-point-arithmetic.md) for Q-format scaling, widening, and narrowing contracts.

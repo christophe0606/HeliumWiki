@@ -13,6 +13,12 @@ hardware-itcm-instruction-data-contention:
 - ITCM coefficients
 - ITCM data contention
 - literal data placement
+languages-arm-mve-intrinsics-and-assembly:
+- Arm MVE ACLE intrinsics
+- arm_mve.h vector types
+- Helium exception context
+- Helium inline assembly contracts
+- MVE register and ABI rules
 languages-c-float16-half-precision:
 - _Float16 arithmetic
 - C half precision
@@ -31,6 +37,11 @@ patterns-cmsis-dsp-helium-migration:
 patterns-cmsis-nn-mve-runtime-selection:
 - CMSIS-NN MVE runtime integration
 - TFLM CMSIS-NN optimized kernels
+patterns-helium-circular-buffer-addressing:
+- Helium circular buffer
+- MVE wrapped gather offsets
+- vector ring buffer addressing
+- VIWDUP circular addressing
 patterns-helium-dtcm-dma-pipeline:
 - DMA ping-pong DSP buffers
 - DTCM working-set allocation
@@ -156,6 +167,13 @@ techniques-helium-fir-tap-blocking:
 - FIR scratch partial outputs
 - Helium FIR tap blocking
 - MVE FIR coefficient preload
+techniques-helium-fixed-point-arithmetic:
+- fixed-point normalization with CLZ
+- Helium Q15 and Q31 arithmetic
+- Helium rounding shifts
+- MVE fixed-point scaling
+- MVE saturating multiply and narrow
+- MVE top and bottom lane mapping
 techniques-helium-instruction-interleaving:
 - assembly scheduling
 - Cortex-M52 MVE tick scheduling
@@ -177,6 +195,34 @@ techniques-helium-low-overhead-loop-alignment:
 - low-overhead loop alignment
 - MVE loop target alignment
 - WLS DLS alignment
+techniques-helium-matrix-kernel-layout:
+- Helium matrix transpose layout
+- Helium matrix-vector row reuse
+- MVE 3x3 transpose scatter store
+- MVE 4x4 transpose VLD4
+- MVE matrix row blocking
+techniques-helium-memory-access-layout:
+- Helium contiguous and gather accesses
+- Helium interleaved channel loads
+- Helium vector memory layout
+- MVE gather and scatter offsets
+- MVE VLD2 and VLD4 layouts
+techniques-helium-multiword-carry-arithmetic:
+- FPSCR carry chain
+- Helium vector carry propagation
+- MVE multiword addition
+- VADC VSBC multi-limb arithmetic
+techniques-helium-polynomial-multiplication:
+- Helium polynomial multiply lanes
+- MVE carryless multiplication
+- MVE polynomial partial products
+- VMULL P8 P16
+techniques-helium-predication-and-tail-handling:
+- Helium lane predication
+- MVE predicate masks
+- MVE tail predication
+- VCTP tail handling
+- VPT and VPST lane conditions
 techniques-helium-trace-analysis:
 - Cortex-M instruction trace workflow
 - ETM trace analysis
@@ -184,6 +230,12 @@ techniques-helium-trace-analysis:
 techniques-helium-vector-data-alignment:
 - Cortex-M vector data layout
 - MVE buffer alignment
+techniques-helium-vector-reductions:
+- Helium integer reductions
+- Helium vector sum and extrema
+- MVE argmax and argmin
+- MVE dot product accumulation
+- MVE floating-point reduction
 techniques-profile-guided-helium-optimization:
 - Helium hotspot profiling workflow
 - isolate hot loops for compiler inspection

@@ -39,6 +39,7 @@ sources:
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/BasicMathFunctions/arm_mult_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/ComplexMathFunctions/arm_cmplx_mult_real_f32.c
   - https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/SupportFunctions/arm_q15_to_float.c
+  - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
 aliases:
   - CMSIS-DSP MVE porting
   - CMSIS-DSP Cortex-M55 migration
@@ -77,6 +78,8 @@ See [Helium DF1 biquad vectorization](../techniques/techniques-helium-df1-biquad
 
 CMSIS-DSP routines are intended to process blocks. For very short blocks, call and loop setup can be a meaningful part of the implementation, so compare a library call with a small dedicated kernel for the application's actual block size. This is a measured design choice, not a universal threshold; see [small-kernel fusion](patterns-helium-small-kernel-fusion.md) for ways to reduce repeated setup and intermediate traffic. Build the library for the processor's implemented MVE and floating-point features, and check the selected release's function and buffer contracts.
 
+Start by selecting a semantically matching optimized CMSIS-DSP routine for DSP work, or an optimized CMSIS-NN kernel through the application's runtime for supported neural-network operators; see [CMSIS-NN MVE runtime selection](patterns-cmsis-nn-mve-runtime-selection.md). For remaining custom C or C++ loops, inspect compiler vectorization diagnostics and generated code. Use Helium intrinsics or assembly only for a residual hotspot that profiling shows still needs attention, then validate its numerical and memory contracts. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 129–133]
+
 ## Replace custom operations with equivalent CMSIS-DSP functions
 
 Before maintaining an arithmetic loop, check CMSIS-DSP for a function with matching semantics. These case-study candidates have public implementations in release v1.18.0:
@@ -92,8 +95,22 @@ Before maintaining an arithmetic loop, check CMSIS-DSP for a function with match
 
 Basic add, subtract, and fill loops also have library equivalents. Treat each function as a candidate replacement and check its declarations, implementation, and allocation requirements in the selected release.
 
+CMSIS-DSP also provides classical machine-learning functions in areas including SVM classification, Bayesian estimators, distance calculations, weighted-sum support functions, and statistics such as entropy and Kullback–Leibler divergence. These are library-discovery candidates when they match the application's task; the reference book describes its functions as single-precision and reports Helium implementations for many of them. Availability and MVE support vary by CMSIS-DSP release, so verify each selected release's supported data type, input layout, approximation behavior, and allocation contract before integrating a function. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 230–231]
+
+Select a public CMSIS-DSP classical-ML function by matching its task semantics, input type, and configured MVE support in the release being built. Treat the book's named vector paths and approximation helpers, including reciprocal or logarithm helpers where used, as a 2020 snapshot: verify current declarations, contracts, and approximation behavior in that release, and do not infer availability from Helium target flags alone. Do not change the model algorithm solely to fit an instruction; first establish that a candidate function preserves the task semantics. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 230–231]
+
 Match each function's element count, input/output layout, aliasing rules, numeric format, and accumulation behavior. In particular, complex routines may count complex samples while buffers hold separate real and imaginary values. Preserve fixed-point scaling, saturation and rounding, or floating-point evaluation behavior where those are part of the caller's contract. Check boundary lengths and tails rather than copying an example's count mechanically.
 
 ## Preserve the FFT wrapper contract
 
 A wrapper around a native CMSIS-DSP FFT can ease a staged migration, while moving all consumers to the native representation may remove conversions later. Before replacing the wrapper, document and test the caller-visible ordering, forward or inverse direction, normalization/scaling, and the representation of packed real-spectrum endpoints. Check round-trip behavior and downstream consumers against the selected release. The source case study contains sample code whose endpoint and length details should not be generalized into a reusable contract; derive those details from the public API used by the application.
+
+## Match FFT output counts and magnitude semantics
+
+When passing a complex FFT result to a magnitude routine, use the complex-sample count and interleaved layout required by that function, not the scalar component count. For a real FFT, first confirm whether its public API returns a packed spectrum and how the endpoints are represented, then derive the valid magnitude range from that contract. Helium has no vector square-root instruction; use a library path with matching semantics or validate any approximate vector square root for the required error, exceptional values, and input domain before adopting it. The book's magnitude discussion is an implementation example, not a stable private-helper API. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 190–191]
+
+## Initialize FIR coefficients and state for the selected release
+
+The book's FIR example uses time-reversed coefficients, with the oldest sample paired to the first coefficient; confirm coefficient order against the selected CMSIS-DSP function and data convention before reusing a coefficient array. Coefficients may be shared between filter instances when their contents and layout are compatible, but each independent filter needs its own evolving state and instance structure. Initialize each instance's state, coefficient and state pointers, and tap metadata through the selected release's public initialization routine or documented contract. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 195–196]
+
+Check that exact CMSIS-DSP release and FIR function for state size, zero-initialization requirements, coefficient padding, and any scratch storage. These requirements can differ between scalar and MVE paths; do not generalize an older example's state formula, padding, or dispatch conditions into a universal allocation rule. The release-pinned public [F32 FIR](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_f32.c), [Q15 FIR](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q15.c), and [Q31 FIR](https://github.com/ARM-software/CMSIS-DSP/blob/v1.18.0/Source/FilteringFunctions/arm_fir_q31.c) implementations are release-specific references, not a substitute for that function's documented allocation contract. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF p. 196]

@@ -22,6 +22,7 @@ sources:
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L849-L867
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/Performance_analysis/ml-dsp-front-end-optimization-with-helium.md#L1337-L1371
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/optimizing_c_functions.md#L81-L98
+  - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
 aliases:
   - Helium loop fusion
   - eliminate short DSP temporary buffers
@@ -42,3 +43,5 @@ The source case study gives complex conjugation followed by a complex dot produc
 ## Check the cost of fusion
 
 Fusion can remove intermediate stores, reloads, and repeated setup, but it can also raise register pressure, cause spills, increase code size, or change floating-point association. Compare the generated code and profile the complete application after the change. Keep the simpler library path when the fused implementation does not improve the actual workload or makes its contract harder to maintain. The source describes a CMSIS-DSP C++ fusion facility as experimental at the time of writing; check the selected public release before depending on that facility.
+
+Loop partitioning is the opposite option: separating several tasks may expose simpler vectorizable loops, but it can add traversals and intermediate traffic. Fusion can remove that traffic while keeping more values live and increasing spill risk. Compare both layouts using the actual working set, generated code, and complete workload; neither splitting nor fusion is a universal winner. See [Helium loop vectorization](../techniques/techniques-helium-auto-vectorization.md) for iteration-count, dependency, and compiler-diagnostic checks. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF p. 137]

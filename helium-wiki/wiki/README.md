@@ -8,15 +8,16 @@ Check each page's processor, revision, implemented features, and toolchain condi
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `techniques-profile-guided-helium-optimization` | [wiki/techniques/techniques-profile-guided-helium-optimization.md](techniques/techniques-profile-guided-helium-optimization.md) | Prioritize application hotspots, compare DSP/NN/accelerator contributions, isolate hot loops, and profile again after structural changes. |
+| `techniques-profile-guided-helium-optimization` | [wiki/techniques/techniques-profile-guided-helium-optimization.md](techniques/techniques-profile-guided-helium-optimization.md) | Prioritize application hotspots, isolate hot loops, verify PMU event and counter conditions, and profile again after structural changes. |
 | `techniques-helium-trace-analysis` | [wiki/techniques/techniques-helium-trace-analysis.md](techniques/techniques-helium-trace-analysis.md) | Capture bounded Cortex-M traces, match executable symbols, align comparable events, and interpret timestamp and sleep limitations. |
 
-## Compiler configuration and source vectorization
+## Compiler configuration and MVE programming contracts
 
 | ID | Path | Quick description |
 | --- | --- | --- |
 | `techniques-arm-compiler-mve-target-configuration` | [wiki/techniques/techniques-arm-compiler-mve-target-configuration.md](techniques/techniques-arm-compiler-mve-target-configuration.md) | Match Cortex-M52/M55/M85 Arm Compiler CPU flags and feature tests to implemented Helium and floating-point features. |
 | `techniques-helium-auto-vectorization` | [wiki/techniques/techniques-helium-auto-vectorization.md](techniques/techniques-helium-auto-vectorization.md) | Use compiler diagnostics, loop layout, operand reuse, and arithmetic contracts to improve C or C++ Helium vectorization. |
+| `languages-arm-mve-intrinsics-and-assembly` | [wiki/languages/languages-arm-mve-intrinsics-and-assembly.md](languages/languages-arm-mve-intrinsics-and-assembly.md) | Use ACLE types and inspect generated code while preserving register, inline-assembly, ABI, and exception-context contracts. |
 
 ## Runtime feature setup and power control
 
@@ -25,31 +26,53 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | `techniques-armv81m-feature-initialization` | [wiki/techniques/techniques-armv81m-feature-initialization.md](techniques/techniques-armv81m-feature-initialization.md) | Enable Cortex-M55/M85 low-overhead branch and Helium access, including TrustZone permissions and M55 CP10-dependent shift timing. |
 | `techniques-cortex-m55-epu-retention` | [wiki/techniques/techniques-cortex-m55-epu-retention.md](techniques/techniques-cortex-m55-epu-retention.md) | Balance EPU wake delays and power savings on Cortex-M55 r0px/r1p0 systems using automatic retention. |
 
-## DSP and neural-network libraries and numerical precision
+## DSP and neural-network library integration
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `patterns-cmsis-dsp-helium-migration` | [wiki/patterns/patterns-cmsis-dsp-helium-migration.md](patterns/patterns-cmsis-dsp-helium-migration.md) | Select CMSIS-DSP Helium paths, review FIR/DF1 layouts and buffer contracts, and preserve block-size and FFT-wrapper semantics. |
-| `patterns-cmsis-nn-mve-runtime-selection` | [wiki/patterns/patterns-cmsis-nn-mve-runtime-selection.md](patterns/patterns-cmsis-nn-mve-runtime-selection.md) | Select CMSIS-NN Helium kernels through the ML runtime, verify operator support and target features, and confirm the generated call path. |
+| `patterns-cmsis-dsp-helium-migration` | [wiki/patterns/patterns-cmsis-dsp-helium-migration.md](patterns/patterns-cmsis-dsp-helium-migration.md) | Select CMSIS-DSP Helium paths and release-specific FIR/DF1 state layouts, block sizes, FFT semantics, and matching public routines. |
+| `patterns-cmsis-nn-mve-runtime-selection` | [wiki/patterns/patterns-cmsis-nn-mve-runtime-selection.md](patterns/patterns-cmsis-nn-mve-runtime-selection.md) | Verify Cortex-M55 runtime kernel selection, release-specific operator and tensor contracts, quantization, and deployment memory needs. |
+
+## Numerical precision, fixed-point arithmetic, and reductions
+
+| ID | Path | Quick description |
+| --- | --- | --- |
 | `languages-c-float16-half-precision` | [wiki/languages/languages-c-float16-half-precision.md](languages/languages-c-float16-half-precision.md) | Choose `_Float16` for suitable numerical ranges and working-set sizes, with compiler support and DSP lane layouts in view. |
+| `techniques-helium-fixed-point-arithmetic` | [wiki/techniques/techniques-helium-fixed-point-arithmetic.md](techniques/techniques-helium-fixed-point-arithmetic.md) | Match Q formats, intermediate widths, top/bottom lanes, conversions, rounding, saturation, and quantized-operator semantics. |
+| `techniques-helium-vector-reductions` | [wiki/techniques/techniques-helium-vector-reductions.md](techniques/techniques-helium-vector-reductions.md) | Select integer and floating-point reductions with valid accumulator ranges, identities, tail masks, extrema indices, and numeric order. |
 
-## DSP kernel layout, vectorization, and fusion
+## DSP and matrix kernel layout and fusion
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `techniques-helium-fir-tap-blocking` | [wiki/techniques/techniques-helium-fir-tap-blocking.md](techniques/techniques-helium-fir-tap-blocking.md) | Study Cortex-M55 FIR coefficient preloading, floating-point and fixed-point lane mappings, and long-filter scratch-pass tradeoffs. |
-| `techniques-helium-fft-butterflies` | [wiki/techniques/techniques-helium-fft-butterflies.md](techniques/techniques-helium-fft-butterflies.md) | Map CFFT/RFFT butterflies to Helium complex operations, gather/scatter and recombination, and evaluate pipelining in profiled loops. |
+| `techniques-helium-fir-tap-blocking` | [wiki/techniques/techniques-helium-fir-tap-blocking.md](techniques/techniques-helium-fir-tap-blocking.md) | Study Cortex-M55 FIR lane mappings, coefficient reuse, block-linear history, sample/tap tails, and convolution boundary contracts. |
+| `techniques-helium-fft-butterflies` | [wiki/techniques/techniques-helium-fft-butterflies.md](techniques/techniques-helium-fft-butterflies.md) | Map complex FFT butterflies and permutations to Helium lanes while preserving signs, scaling, output layout, and peak-index association. |
 | `techniques-helium-df1-biquad-vectorization` | [wiki/techniques/techniques-helium-df1-biquad-vectorization.md](techniques/techniques-helium-df1-biquad-vectorization.md) | Study Cortex-M55 DF1 recurrence expansion, floating-point coefficient layouts, Q31 feedback scheduling, and numerical checks. |
+| `techniques-helium-matrix-kernel-layout` | [wiki/techniques/techniques-helium-matrix-kernel-layout.md](techniques/techniques-helium-matrix-kernel-layout.md) | Reuse inputs across output rows, amortize packing or partial im2col, and map bounded transpose blocks without overwriting unread inputs. |
 | `patterns-helium-small-kernel-fusion` | [wiki/patterns/patterns-helium-small-kernel-fusion.md](patterns/patterns-helium-small-kernel-fusion.md) | Combine short producer/consumer kernels to reuse operands and remove intermediates while preserving numerical, aliasing, and tail contracts. |
 
-## Memory placement, vector alignment, and buffer lifetimes
+## Multiword and carryless polynomial arithmetic
+
+| ID | Path | Quick description |
+| --- | --- | --- |
+| `techniques-helium-multiword-carry-arithmetic` | [wiki/techniques/techniques-helium-multiword-carry-arithmetic.md](techniques/techniques-helium-multiword-carry-arithmetic.md) | Preserve limb order, FPSCR carry state, partial-vector arithmetic, and whole-vector carry shifts in multiword integer operations. |
+| `techniques-helium-polynomial-multiplication` | [wiki/techniques/techniques-helium-polynomial-multiplication.md](techniques/techniques-helium-polynomial-multiplication.md) | Assemble raw carryless products with XOR, bounded gathers, lane predicates, and target-specific schedules within register and ABI limits. |
+
+## Vector memory layout, alignment, and circular traversal
+
+| ID | Path | Quick description |
+| --- | --- | --- |
+| `techniques-helium-memory-access-layout` | [wiki/techniques/techniques-helium-memory-access-layout.md](techniques/techniques-helium-memory-access-layout.md) | Choose contiguous, gather/scatter, widening, and complete interleaved transfers from address units, lane layout, and tail bounds. |
+| `techniques-helium-vector-data-alignment` | [wiki/techniques/techniques-helium-vector-data-alignment.md](techniques/techniques-helium-vector-data-alignment.md) | Separate vector alignment requirements from bus and cache-line performance choices, allocation bounds, padding, and tail handling. |
+| `patterns-helium-circular-buffer-addressing` | [wiki/patterns/patterns-helium-circular-buffer-addressing.md](patterns/patterns-helium-circular-buffer-addressing.md) | Generate bounded wrapped offsets for ring-buffer gathers and compare per-sample circular updates with block-linear FIR state. |
+
+## Memory placement and buffer lifetimes
 
 | ID | Path | Quick description |
 | --- | --- | --- |
 | `hardware-itcm-instruction-data-contention` | [wiki/hardware/hardware-itcm-instruction-data-contention.md](hardware/hardware-itcm-instruction-data-contention.md) | Avoid instruction/data contention in Cortex-M55/M85 ITCM and evaluate M85 DTCM placement for frequently accessed constants. |
 | `hardware-dtcm-scatter-gather-banks` | [wiki/hardware/hardware-dtcm-scatter-gather-banks.md](hardware/hardware-dtcm-scatter-gather-banks.md) | Arrange M55/M85 bank accesses, distinguish gather/load conflicts from M55 store-to-read hazards, and account for M85 L1/DMA contention. |
-| `techniques-helium-vector-data-alignment` | [wiki/techniques/techniques-helium-vector-data-alignment.md](techniques/techniques-helium-vector-data-alignment.md) | Separate vector alignment requirements from bus and cache-line performance choices, allocation bounds, padding, and tail handling. |
-| `patterns-sequential-buffer-overlays` | [wiki/patterns/patterns-sequential-buffer-overlays.md](patterns/patterns-sequential-buffer-overlays.md) | Reuse temporary workspace storage only across disjoint lifetimes, including pending DMA, interrupt, and asynchronous consumers. |
+| `patterns-sequential-buffer-overlays` | [wiki/patterns/patterns-sequential-buffer-overlays.md](patterns/patterns-sequential-buffer-overlays.md) | Reuse DSP/NN workspace only across disjoint lifetimes, preserving unread inputs, recurrent state, and asynchronous consumers. |
 
 ## DMA pipelines, ownership, and cache visibility
 
@@ -78,9 +101,10 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | `techniques-cortex-m85-memory-access-scheduling` | [wiki/techniques/techniques-cortex-m85-memory-access-scheduling.md](techniques/techniques-cortex-m85-memory-access-scheduling.md) | Schedule Cortex-M85 scalar, FP, and MVE memory accesses by encoding, dependencies, store-data forwarding, alignment, and base updates. |
 | `techniques-helium-instruction-interleaving` | [wiki/techniques/techniques-helium-instruction-interleaving.md](techniques/techniques-helium-instruction-interleaving.md) | Interleave Helium work using M52 beatwise overlap, M55 pipeline hazards and operand reuse, and M85 issue-group rules. |
 
-## Branch prediction and loop control
+## Branch prediction, loop control, and lane predicates
 
 | ID | Path | Quick description |
 | --- | --- | --- |
 | `techniques-cortex-m-branch-prediction` | [wiki/techniques/techniques-cortex-m-branch-prediction.md](techniques/techniques-cortex-m-branch-prediction.md) | Use Cortex-M52 branch/loop timing and Cortex-M55/M85 prediction controls, timing, and core-specific overlap constraints. |
 | `techniques-helium-low-overhead-loop-alignment` | [wiki/techniques/techniques-helium-low-overhead-loop-alignment.md](techniques/techniques-helium-low-overhead-loop-alignment.md) | Align Cortex-M55/M85 Helium low-overhead-loop targets to four-byte boundaries and verify padding in the final assembly. |
+| `techniques-helium-predication-and-tail-handling` | [wiki/techniques/techniques-helium-predication-and-tail-handling.md](techniques/techniques-helium-predication-and-tail-handling.md) | Match loop counts, predicate widths, inactive lanes, memory bounds, scalar effects, and early-exit tail-state cleanup. |

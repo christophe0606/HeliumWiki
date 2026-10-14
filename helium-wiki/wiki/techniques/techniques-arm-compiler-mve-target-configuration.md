@@ -24,6 +24,7 @@ related:
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://github.com/Arm-Examples/Helium-Optimization/blob/bc9dfb67be64a2a5ee8e5325910a3f060a593863/General_optimizations/basic_optimization_topics.md#L49-L79
+  - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
 aliases:
   - Arm Compiler MVE target flags
   - armclang Cortex-M55 feature selection
@@ -73,6 +74,12 @@ ACLE C and C++ code can use `__ARM_FEATURE_MVE` to select an MVE-specific implem
 ```
 
 This is a compile-time feature test. It does not establish that runtime CP10/CP11 access has been enabled; startup configuration is covered by [techniques-armv81m-feature-initialization](techniques-armv81m-feature-initialization.md). The Arm Compiler flags and version advice here are source-specific and should not be treated as GCC/LLVM flags or a current toolchain recommendation.
+
+## Match the target's implemented MVE features
+
+Armv8.1-M and MVE are separate capability claims: an Armv8.1-M processor may omit MVE, implement integer MVE only, or implement integer and floating-point MVE. Scalar floating-point support, including optional double precision, does not imply vector double-precision support; MVE provides vector integer and supported vector floating-point formats, but no vector F64 arithmetic. Select compiler features from the fitted processor's actual implementation rather than assuming that every Armv8.1-M target has the same MVE feature set. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 24, 36–37]
+
+For ACLE code selection, `__ARM_FEATURE_MVE` is a compile-time description of the compilation target: test bit 0 for integer MVE and bit 1 for MVE floating-point support. These checks select code at build time; they do not detect the feature set of an arbitrary processor at runtime. Keep the existing Cortex-M52, Cortex-M55, and Cortex-M85 toolchain selections above tied to each processor's supported combinations.
 
 ## Cortex-M52 target feature selection
 
