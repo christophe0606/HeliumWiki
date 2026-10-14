@@ -216,6 +216,7 @@ techniques-helium-memory-access-layout:
 - Helium byte and element pointer units
 - Helium contiguous and gather accesses
 - Helium interleaved channel loads
+- Helium interleaved element widths
 - Helium vector memory layout
 - MVE gather and scatter offsets
 - MVE VLD2 and VLD4 layouts

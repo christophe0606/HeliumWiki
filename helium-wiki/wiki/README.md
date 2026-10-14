@@ -62,7 +62,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `techniques-helium-memory-access-layout` | [wiki/techniques/techniques-helium-memory-access-layout.md](techniques/techniques-helium-memory-access-layout.md) | Keep typed-pointer elements and byte counts distinct when choosing contiguous, gather/scatter, widening, and complete interleaved transfers with bounded tails. |
+| `techniques-helium-memory-access-layout` | [wiki/techniques/techniques-helium-memory-access-layout.md](techniques/techniques-helium-memory-access-layout.md) | Match pointer units, gather/scatter, and widening to data layout; use complete, balanced two/four-channel patterns for 8/16/32-bit elements with bounded tails, and verify memory banks before exploiting contiguous-block parallelism. |
 | `techniques-helium-vector-data-alignment` | [wiki/techniques/techniques-helium-vector-data-alignment.md](techniques/techniques-helium-vector-data-alignment.md) | Separate vector alignment requirements from bus and cache-line performance choices, allocation bounds, padding, and tail handling. |
 | `patterns-helium-circular-buffer-addressing` | [wiki/patterns/patterns-helium-circular-buffer-addressing.md](patterns/patterns-helium-circular-buffer-addressing.md) | Generate bounded wrapped offsets for ring-buffer gathers and compare per-sample circular updates with block-linear FIR state. |
 

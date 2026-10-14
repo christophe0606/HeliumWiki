@@ -17,16 +17,19 @@ related:
   - hardware-dtcm-scatter-gather-banks
   - techniques-cortex-m-memory-access-scheduling
   - techniques-cortex-m85-memory-access-scheduling
+  - techniques-helium-instruction-interleaving
   - techniques-helium-predication-and-tail-handling
 sources:
   - https://support.arm.com/documentation/102095/0101/?lang=en
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
+  - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-sudoku-registers-and-rabbits
 aliases:
   - Helium byte and element pointer units
   - Helium contiguous and gather accesses
   - MVE gather and scatter offsets
   - Helium interleaved channel loads
   - MVE VLD2 and VLD4 layouts
+  - Helium interleaved element widths
   - Helium vector memory layout
 ---
 
@@ -56,7 +59,13 @@ False-predicated load lanes become zero, while false-predicated stores leave the
 
 `VLD2`/`VLD4` and `VST2`/`VST4` deinterleave or interleave patterns across two or four vector registers. A pattern instruction handles only part of the complete transfer; one `VLD2` or `VLD4` pattern is not an independent even-lane or odd-lane load. Use the complete matching pattern group for the intended stride. ACLE aggregate intrinsics such as `vld2q` and `vld4q` represent that full multi-instruction operation, not a single partial pattern. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 112–114, 142]
 
+For the MVE interleaved transfer design described here, two- and four-channel layouts support 8-, 16-, and 32-bit elements; select the channel count and width that match the data format. [Making Helium: Sudoku, registers and rabbits (2/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-sudoku-registers-and-rabbits)
+
+The four-way MVE store is divided among four pattern instructions, each transferring 128 bits, to balance memory work with ALU work. For target-specific scheduling, see [Helium instruction interleaving](techniques-helium-instruction-interleaving.md). [Making Helium: Sudoku, registers and rabbits (2/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-sudoku-registers-and-rabbits)
+
 For interleaved stereo or ARGB data, deinterleave only when the computation benefits from separate channel vectors, and interleave again if the output contract requires the original layout. Verify the component order and alpha placement against the caller's format. Aggregate channel loads consume a complete vector block and are not automatically safe for an incomplete final block; use a correctly bounded tail path, such as scalar cleanup or an explicitly tail-safe operation. Keep this separate from alignment and allocation requirements; see [vector data alignment](techniques-helium-vector-data-alignment.md). [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 112–114, 199–200, 202]
+
+The described patterns serve loads as well as stores and access pairs of contiguous 64-bit blocks. In systems with two interleaved 64-bit memory banks, the block addresses differ in bit 3, allowing parallel dispatch; check the target’s memory organization before relying on this opportunity. [Making Helium: Sudoku, registers and rabbits (2/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-sudoku-registers-and-rabbits)
 
 ## Evaluate gathers used for lane permutations
 
