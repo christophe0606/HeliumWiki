@@ -87,12 +87,18 @@ techniques-cache-dma-buffer-visibility:
 - Cortex-M cache clean before DMA
 techniques-cortex-m-branch-prediction:
 - ACTLR DISLOBR
+- Armv8.1-M low-overhead loop control
+- BFX BFL branch hint use cases
+- Branch Future hint fallback
 - Cortex-M52 branch instruction timing
 - Cortex-M52 low-overhead loop timing
 - Cortex-M55 branch latency
 - Cortex-M55 low-overhead loop timing
 - Cortex-M55 r1 static branch prediction
 - Cortex-M85 CCR BP
+- executable branch fallback after interrupt
+- low-overhead loop interrupt recovery
+- WLS DLS LE loop counter
 techniques-cortex-m-data-prefetch-and-cache-hints:
 - Cortex-M52 hardware data prefetch
 - Cortex-M52 PREFETCH and PFCR
@@ -195,10 +201,12 @@ techniques-helium-instruction-interleaving:
 - Cortex-M85 load store overlap parity
 - Cortex-M85 MVE overlap
 - Cortex-M85 SIMD instruction groups
+- cross-iteration load and MAC overlap
 - dependent MVE load/MAC overlap
 - Helium instruction scheduling
 - instruction overlap
 - LLVM-MCA Helium scheduling diagnosis
+- loop backedge scheduling
 - M55 E2 E3 SRF write hazards
 - MVE instruction interleaving
 - MVE operand reuse across independent outputs
@@ -238,8 +246,11 @@ techniques-helium-predication-and-tail-handling:
 - MVE complex sample tail counts
 - MVE predicate masks
 - MVE tail predication
+- MVE tail-predicated counts
 - VCTP tail handling
 - VPT and VPST lane conditions
+- WLSTP element count units
+- WLSTP.8 byte count
 techniques-helium-trace-analysis:
 - Cortex-M instruction trace workflow
 - ETM trace analysis
@@ -256,6 +267,8 @@ techniques-helium-vector-reductions:
 - MVE floating-point reduction
 - MVE scalar accumulator for widening reductions
 techniques-profile-guided-helium-optimization:
+- Amdahl's law and loop-control overhead
 - Helium hotspot profiling workflow
 - isolate hot loops for compiler inspection
 - profile DSP and NN workloads
+- scalar loop overhead after Helium vectorization

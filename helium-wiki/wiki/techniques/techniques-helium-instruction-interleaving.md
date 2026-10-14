@@ -16,6 +16,7 @@ reproducibility: concept
 related:
   - techniques-helium-auto-vectorization
   - techniques-helium-low-overhead-loop-alignment
+  - techniques-cortex-m-branch-prediction
   - techniques-cortex-m-latency-aware-scheduling
   - techniques-cortex-m-floating-point-scheduling
   - techniques-cortex-m-memory-access-scheduling
@@ -29,6 +30,7 @@ related:
 sources:
   - https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/armv8_2d00_m-based-processor-software-development-hints-and-tips
   - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-why-not-just-add-neon
+  - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel
   - https://support.arm.com/documentation/102692/0101
   - https://support.arm.com/documentation/107950/0100
   - https://support.arm.com/documentation/107730/0003
@@ -56,6 +58,8 @@ aliases:
   - MVE operand reuse across independent outputs
   - LLVM-MCA Helium scheduling diagnosis
   - dependent MVE load/MAC overlap
+  - cross-iteration load and MAC overlap
+  - loop backedge scheduling
 evidence_basis: "Processor pipeline and instruction characteristics are source-reported in the linked public guides. CMSIS-DSP v1.18.0 links corroborate FIR and biquad implementation examples."
 ---
 
@@ -220,6 +224,8 @@ Arm's example shows a vector-wide load/MAC dependency may still allow beatwise o
 Interleaving a load with arithmetic can expose an opportunity when the instructions use compatible, separate resources, but preserve true data dependencies and exact instruction-form restrictions. A scalar operation between vector instructions is useful only when it is independent of the surrounding vector work and the selected core permits the overlap; changing mnemonic order alone does not remove a dependency. Treat the book's general load/arithmetic alternation as a scheduling hypothesis to check against the core-specific rules, not a portable schedule. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 42–44, 176–177]
 
 On Cortex-M55, the book calls out latency when `VIDUP` or `VDDUP` produces scatter/gather offsets. Schedule offset generation sufficiently ahead of its consuming memory instruction to respect that producer/consumer dependency, and confirm the exact instruction behavior in the applicable M55 guide. This placement advice is M55-specific and does not replace the M52 or M85 scheduling rules above. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF p. 177]
+
+Inspect the loop backedge as an adjacent scheduling pair. If a vector loop starts with a load such as `VLDR` and ends with compatible vector arithmetic such as `VMLA`, the final arithmetic instruction of one iteration and the next iteration's leading load may overlap when the exact core's resources, forwarding, and true dependencies permit it. Check memory bounds and preserve the implementation- and revision-specific rules; the Cortex-M85 same-resource restriction across the backedge above still applies. Different instruction classes alone do not guarantee overlap or a speedup. For cache-assisted low-overhead loop flow and recovery, see [Cortex-M branch prediction and loop control](techniques-cortex-m-branch-prediction.md). This hardware opportunity is distinct from explicit software pipelining, which moves a future iteration's load earlier and requires valid loop-entry and drain handling as described below. [Making Helium: Bringing Amdahl's law to heel (4/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel)
 
 ## Software-pipeline loads with explicit boundaries
 

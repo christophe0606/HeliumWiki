@@ -17,15 +17,20 @@ reproducibility: concept
 related:
   - techniques-helium-auto-vectorization
   - techniques-helium-low-overhead-loop-alignment
+  - techniques-cortex-m-branch-prediction
   - techniques-armv81m-feature-initialization
   - techniques-helium-vector-data-alignment
 sources:
   - https://github.com/arm-education/Arm-Helium-Technology/blob/main/HeliumTechnology_referencebook.pdf
   - https://support.arm.com/documentation/102095/0101/?lang=en
+  - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel
 aliases:
   - MVE complex sample tail counts
   - Helium lane predication
   - MVE tail predication
+  - WLSTP element count units
+  - WLSTP.8 byte count
+  - MVE tail-predicated counts
   - VCTP tail handling
   - VPT and VPST lane conditions
   - MVE predicate masks
@@ -35,9 +40,11 @@ Use these contracts when writing or reviewing Helium vector loops with per-lane 
 
 ## Match loop form to trip-count semantics
 
-Use `WLS` or `WLSTP` for a loop that may have zero iterations: they branch around the body when the count is zero. Use `DLS` or `DLSTP` only for do-loop behavior whose contract guarantees at least one iteration. Without tail predication, `LR` represents the number of loop iterations. With `WLSTP` or `DLSTP`, `LR` represents the number of remaining elements, and `LETP` decrements it by the vector lane capacity selected for the element size. The final iteration predicates lanes beyond the remaining element count. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 50, 53, 117]
+Use `WLS` or `WLSTP` for a loop that may have zero iterations: they branch around the body when the count is zero. Use `DLS` or `DLSTP` only for do-loop behavior whose contract guarantees at least one iteration. Without tail predication, `LR` represents the number of loop iterations. With `WLSTP` or `DLSTP`, `LR` represents the number of remaining elements, not the number of vector iterations, and `LETP` decrements it by the vector lane capacity selected for the element size. The final iteration predicates lanes beyond the remaining element count. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 50, 53, 117] [Making Helium: Bringing Amdahl's law to heel (4/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel)
 
-Tail predication keeps a partial final vector in the vector loop; the unprocessed lanes are disabled according to the remaining element count. For explicit intrinsic tails, create the predicate with `VCTP` using an element width that matches the consuming load, arithmetic, or store. This avoids a separate scalar cleanup only when the tail operations themselves honor that predicate. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 100, 150]
+The `WLSTP` size suffix selects the element width, and the initial count uses that element's units: `WLSTP.8` counts remaining bytes, while wider forms count remaining elements of their selected width. A byte-oriented tail loop therefore needs a byte count in `LR`. The article's copy illustration assumes a non-overlapping ordinary-memory copy; it does not establish overlap-safe or memory-mapped-I/O behavior. Preserve `WLSTP`'s zero-count branch before every input and output access, keep active lanes within both buffer bounds, and preserve the function return address and calling-convention requirements before reusing `LR` as the loop counter. [Making Helium: Bringing Amdahl's law to heel (4/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel)
+
+Tail predication keeps a partial final vector in the vector loop; the unprocessed lanes are disabled according to the remaining element count. For explicit intrinsic tails, create the predicate with `VCTP` using an element width that matches the consuming load, arithmetic, or store. This avoids a separate scalar cleanup only when the tail operations themselves honor that predicate. [Arm Helium Technology: M-Profile Vector Extension (MVE) for Cortex-M Processors, Reference Book, PDF pp. 100, 150] [Making Helium: Bringing Amdahl's law to heel (4/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel)
 
 ### Count complex samples in scalar component lanes
 

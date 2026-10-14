@@ -8,7 +8,7 @@ Check each page's processor, revision, implemented features, and toolchain condi
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `techniques-profile-guided-helium-optimization` | [wiki/techniques/techniques-profile-guided-helium-optimization.md](techniques/techniques-profile-guided-helium-optimization.md) | Prioritize application hotspots, isolate hot loops, verify PMU event and counter conditions, and profile again after structural changes. |
+| `techniques-profile-guided-helium-optimization` | [wiki/techniques/techniques-profile-guided-helium-optimization.md](techniques/techniques-profile-guided-helium-optimization.md) | Prioritize hotspots, reassess serial overhead after vectorization and unrolling tradeoffs, isolate hot loops, verify PMU conditions, and profile again after structural changes. |
 | `techniques-helium-trace-analysis` | [wiki/techniques/techniques-helium-trace-analysis.md](techniques/techniques-helium-trace-analysis.md) | Capture bounded Cortex-M traces, match executable symbols, align comparable events, and interpret timestamp and sleep limitations. |
 
 ## Compiler configuration and MVE programming contracts
@@ -99,12 +99,12 @@ Check each page's processor, revision, implemented features, and toolchain condi
 | `techniques-cortex-m85-floating-point-scheduling` | [wiki/techniques/techniques-cortex-m85-floating-point-scheduling.md](techniques/techniques-cortex-m85-floating-point-scheduling.md) | Schedule Cortex-M85 scalar and MVE FP by precision, operand dependencies, shared EPU resources, and fused-operation semantics. |
 | `techniques-cortex-m-memory-access-scheduling` | [wiki/techniques/techniques-cortex-m-memory-access-scheduling.md](techniques/techniques-cortex-m-memory-access-scheduling.md) | Schedule Cortex-M52/M55 scalar, FP, and MVE transfers by encoding, alignment, overlap rules, and independent-buffer store-to-read placement. |
 | `techniques-cortex-m85-memory-access-scheduling` | [wiki/techniques/techniques-cortex-m85-memory-access-scheduling.md](techniques/techniques-cortex-m85-memory-access-scheduling.md) | Schedule Cortex-M85 scalar, FP, and MVE memory accesses by encoding, dependencies, store-data forwarding, alignment, and base updates. |
-| `techniques-helium-instruction-interleaving` | [wiki/techniques/techniques-helium-instruction-interleaving.md](techniques/techniques-helium-instruction-interleaving.md) | Interleave Helium work using conditional dependent load/MAC beatwise overlap, M52 overlap rules, M55 pipeline hazards and operand reuse, and M85 issue-group rules. |
+| `techniques-helium-instruction-interleaving` | [wiki/techniques/techniques-helium-instruction-interleaving.md](techniques/techniques-helium-instruction-interleaving.md) | Interleave Helium work within and across loop iterations using conditional load/MAC overlap, M52 overlap rules, M55 hazards and operand reuse, and M85 issue groups. |
 
 ## Branch prediction, loop control, and lane predicates
 
 | ID | Path | Quick description |
 | --- | --- | --- |
-| `techniques-cortex-m-branch-prediction` | [wiki/techniques/techniques-cortex-m-branch-prediction.md](techniques/techniques-cortex-m-branch-prediction.md) | Use Cortex-M52 branch/loop timing and Cortex-M55/M85 prediction controls, timing, and core-specific overlap constraints. |
+| `techniques-cortex-m-branch-prediction` | [wiki/techniques/techniques-cortex-m-branch-prediction.md](techniques/techniques-cortex-m-branch-prediction.md) | Match Armv8.1-M loop/LR semantics, interrupt recovery, and optional Branch Future fallbacks to Cortex-M52/M55/M85 branch timing, prediction controls, and overlap constraints. |
 | `techniques-helium-low-overhead-loop-alignment` | [wiki/techniques/techniques-helium-low-overhead-loop-alignment.md](techniques/techniques-helium-low-overhead-loop-alignment.md) | Align Cortex-M55/M85 Helium low-overhead-loop targets to four-byte boundaries and verify padding in the final assembly. |
-| `techniques-helium-predication-and-tail-handling` | [wiki/techniques/techniques-helium-predication-and-tail-handling.md](techniques/techniques-helium-predication-and-tail-handling.md) | Translate complex samples into scalar-component tail counts; match loop counts, predicate widths, inactive lanes, memory bounds, scalar effects, and early-exit tail-state cleanup. |
+| `techniques-helium-predication-and-tail-handling` | [wiki/techniques/techniques-helium-predication-and-tail-handling.md](techniques/techniques-helium-predication-and-tail-handling.md) | Match element widths and count units, including complex components, to zero-count entry, lane predicates, memory bounds, scalar effects, and early-exit tail-state cleanup. |

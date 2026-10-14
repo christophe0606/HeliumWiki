@@ -3,6 +3,7 @@ id: techniques-cortex-m-branch-prediction
 title: Use Cortex-M52, Cortex-M55, and Cortex-M85 branch timing and prediction guidance
 type: techniques
 architectures:
+  - armv8.1-m
   - cortex-m52
   - cortex-m55
   - cortex-m85
@@ -17,6 +18,8 @@ confidence: source-reported
 reproducibility: snippet
 related:
   - techniques-armv81m-feature-initialization
+  - techniques-helium-predication-and-tail-handling
+  - techniques-helium-instruction-interleaving
   - techniques-cortex-m-latency-aware-scheduling
   - techniques-cortex-m85-latency-aware-scheduling
   - techniques-cortex-m-thumb-dual-issue
@@ -26,6 +29,7 @@ sources:
   - https://support.arm.com/documentation/102692/0101
   - https://support.arm.com/documentation/107950/0100
   - https://support.arm.com/documentation/107730/0003
+  - https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel
 aliases:
   - Cortex-M85 CCR BP
   - Cortex-M55 r1 static branch prediction
@@ -34,12 +38,34 @@ aliases:
   - Cortex-M55 low-overhead loop timing
   - Cortex-M52 branch instruction timing
   - Cortex-M52 low-overhead loop timing
+  - WLS DLS LE loop counter
+  - Armv8.1-M low-overhead loop control
+  - low-overhead loop interrupt recovery
+  - Branch Future hint fallback
+  - BFX BFL branch hint use cases
+  - executable branch fallback after interrupt
 prerequisites:
   - Identify the Cortex-M core and revision before changing prediction controls.
   - Make register changes from suitable privileged initialization code.
 ---
 
 Use this page when evaluating branch timing, loop control, or prediction settings on Cortex-M52 r0p3, Cortex-M55 r1p1, or Cortex-M85 r1p0. Branch controls and timing depend on the core and revision, so follow the matching core-specific section. Reported instruction timings are source data, not application measurements.
+
+## Armv8.1-M low-overhead loop control
+
+For suitable scalar or vector loops, Armv8.1-M provides `WLS` (While Loop Start), `DLS` (Do Loop Start), and `LE` (Loop End). `WLS` places the iteration count in `LR` and skips the loop body when the count is zero. `DLS` provides do-loop semantics and is appropriate only when the caller can guarantee at least one iteration. `LE` tests the count in `LR` and branches to the loop start when another iteration remains. Since `LR` normally holds a function's return address, preserve the return address and calling-convention requirements before using it as a loop counter. [Making Helium: Bringing Amdahl's law to heel (4/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel)
+
+Loop setup and the first iteration are distinct from steady-state loop control. An implementation may cache the loop start/end information supplied by `LE`; in steady state, it can take the loop branch before fetching `LE`. This loop-control information is distinct from instruction and data caches. If an interrupt or cache flush discards the cached loop information, execution can reach and re-execute the architectural `LE` instruction to repopulate it. Keep `LE` on the loop's recovery path, and do not mask interrupts just to use a low-overhead loop. The recovery mechanism avoids requiring separate preservation of loop start/end addresses; ordinary exception-state handling still applies. [Making Helium: Bringing Amdahl's law to heel (4/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel)
+
+Treat these forms as target-supported loop-control options rather than a portable zero-overhead guarantee. For MVE element-count loops, see [Helium predication and tail handling](techniques-helium-predication-and-tail-handling.md); layout requirements are implementation-specific, as described in [Helium low-overhead loop alignment](techniques-helium-low-overhead-loop-alignment.md).
+
+## Branch Future hints and executable fallbacks
+
+Armv8.1-M Branch Future instructions provide advance information about an upcoming transfer and its branch point to implementation branch-information hardware. Unlike a fixed architectural delay slot, the hint lets an implementation use the lead time available in its own pipeline. `BFX` is the exchange form used for return-style transfers; `BFL` is the link form used for call-style transfers. [Making Helium: Bringing Amdahl's law to heel (4/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel)
+
+Place a hint only when its destination and branch-point contract are already valid and stable. A return address already held in `LR` can provide early notice for a return; do not move the hint across code that changes the destination. Keep the ordinary branch at the specified branch point as an executable fallback: an interrupt can flush cached hint state between the hint and that point, so control flow must remain correct when the hint has no effect. [Making Helium: Bringing Amdahl's law to heel (4/4)](https://developer.arm.com/community/arm-research/b/articles/posts/making-helium-bringing-amdahl-s-law-to-heel)
+
+Branch Future is optional, and an implementation may treat it as a NOP. The public processor guides document NOP behavior for Cortex-M52 r0p3, Cortex-M55 r1p1, and Cortex-M85 r1p0; the architectural motivation above is not evidence that these revisions accelerate code with Branch Future. Preserve the ordinary branch behavior and do not add hints on these cores in expectation of acceleration. [Arm China Cortex-M52 Processor Software Optimization Guide, §§2.2–3.2, pp. 11–17; Arm Cortex-M55 Processor Software Optimization Guide, §3.2, pp. 17–18; Arm Cortex-M85 Processor Software Optimization Guide, §3.2, p. 14] See [Helium instruction interleaving](techniques-helium-instruction-interleaving.md) for optional-hint scheduling guidance.
 
 ## Cortex-M85 and Cortex-M55 branch-prediction controls
 
